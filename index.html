@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Конструктор ботов</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root {
+  --bg: var(--tg-theme-bg-color, #0f0f14);
+  --text: var(--tg-theme-text-color, #ffffff);
+  --hint: var(--tg-theme-hint-color, #9898a0);
+  --accent: #4a90d9;
+  --card: #1c1c26;
+  --card-inner: #14141c;
+  --border: #2d2d3a;
+  --red: #ff4757;
+  --green: #2ed573;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg); color: var(--text); line-height: 1.45;
+  padding-bottom: 104px; -webkit-tap-highlight-color: transparent;
+  font-size: 15px;
+}
+
+/* ---------- Шапка ---------- */
+header {
+  position: sticky; top: 0; z-index: 100; background: var(--bg);
+  padding: 18px 16px 12px; text-align: center; border-bottom: 1px solid var(--border);
+}
+header .logo { font-size: 15px; color: var(--hint); margin-bottom: 8px; letter-spacing: .3px; }
+header input {
+  width: 100%; padding: 13px 16px; border-radius: 14px;
+  background: var(--card); color: var(--text); border: 1px solid var(--border);
+  font-size: 17px; font-weight: 600; text-align: center;
+}
+header input:focus { outline: none; border-color: var(--accent); }
+
+/* ---------- Вкладки ---------- */
+.tabs {
+  display: flex; gap: 6px; padding: 10px 16px; background: var(--bg);
+  position: sticky; top: 78px; z-index: 99; border-bottom: 1px solid var(--border);
+}
+.tab {
+  flex: 1; text-align: center; padding: 11px 8px; border-radius: 12px;
+  font-size: 13px; font-weight: 600; background: var(--card); color: var(--hint);
+  border: 1px solid var(--border); cursor: pointer; transition: background .15s, color .15s;
+}
+.tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+main { padding: 16px; max-width: 480px; margin: 0 auto; }
+.screen { display: none; }
+.screen.active { display: block; }
+
+/* ---------- Карточки ---------- */
+@keyframes fadeInUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+  padding: 16px; margin-bottom: 12px; animation: fadeInUp .2s ease;
+  box-shadow: 0 2px 10px rgba(0,0,0,.15);
+}
+.card-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; }
+.card-header .title { font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 6px; }
+.badge {
+  font-size: 10px; padding: 3px 9px; border-radius: 20px;
+  background: rgba(74,144,217,.18); color: var(--accent); font-weight: 700;
+  letter-spacing: .3px; white-space: nowrap;
+}
+
+/* ---------- Поля ---------- */
+label { display: block; font-size: 12px; color: var(--hint); margin: 10px 0 5px; font-weight: 500; }
+input[type=text], input[type=number], textarea, select {
+  width: 100%; padding: 11px 13px; border-radius: 11px;
+  background: var(--card-inner); color: var(--text); border: 1px solid var(--border);
+  font-size: 15px; font-family: inherit; -webkit-appearance: none; appearance: none;
+}
+input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent); }
+textarea { resize: vertical; min-height: 64px; }
+select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239898a0' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 13px center; padding-right: 34px;
+}
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.chip {
+  padding: 5px 11px; border-radius: 20px; background: var(--card-inner); border: 1px solid var(--border);
+  color: var(--hint); font-size: 12px; cursor: pointer;
+}
+.chip:active { background: rgba(74,144,217,.15); color: var(--accent); }
+
+/* ---------- Кнопки-действия ---------- */
+.btn {
+  padding: 12px 16px; border-radius: 12px; border: none; font-size: 14px; min-height: 44px;
+  font-weight: 600; cursor: pointer; display: inline-flex; align-items: center;
+  justify-content: center; gap: 6px; transition: opacity .15s, transform .1s;
+}
+.btn:active { transform: scale(.97); }
+.btn-primary { background: var(--accent); color: #fff; width: 100%; }
+.btn-outline { background: transparent; border: 1.5px dashed var(--border); color: var(--hint); width: 100%; }
+.btn-danger { background: transparent; color: var(--red); padding: 6px 10px; min-height: unset; font-size: 13px; }
+.btn-success { background: var(--green); color: #06210f; width: 100%; font-size: 16px; padding: 16px; }
+.icon-btn {
+  width: 32px; height: 32px; min-height: unset; padding: 0; border-radius: 9px;
+  background: var(--card-inner); color: var(--hint); border: 1px solid var(--border); font-size: 15px;
+}
+
+.row { display: flex; gap: 8px; align-items: center; }
+.row > * { flex: 1; }
+.row.tight > * { flex: 0 0 auto; }
+.mt-2 { margin-top: 12px; }
+
+/* ---------- Блок действия внутри триггера ---------- */
+.action-block {
+  border: 1px solid var(--border); border-radius: 13px; padding: 12px;
+  margin-top: 10px; background: var(--card-inner); animation: fadeInUp .18s ease;
+}
+.action-block .action-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.action-block .action-head select { font-size: 13px; padding: 9px 30px 9px 11px; }
+
+/* ---------- Медиа-пикер (загрузка фото/видео/файла вместо ссылки) ---------- */
+.media-drop { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.media-drop .btn-outline { width: auto; padding: 11px 16px; }
+.chip, button.chip {
+  padding: 5px 11px; border-radius: 20px; background: var(--card-inner); border: 1px solid var(--border);
+  color: var(--hint); font-size: 12px; cursor: pointer; font-family: inherit;
+}
+.media-preview {
+  display: flex; align-items: center; gap: 10px; background: var(--card-inner);
+  border: 1px solid var(--border); border-radius: 12px; padding: 8px;
+}
+.media-thumb { width: 52px; height: 52px; border-radius: 9px; object-fit: cover; flex: 0 0 auto; }
+.media-file-icon {
+  width: 52px; height: 52px; border-radius: 9px; background: var(--border);
+  display: flex; align-items: center; justify-content: center; font-size: 22px; flex: 0 0 auto;
+}
+.media-file-info { flex: 1; min-width: 0; }
+.media-file-name { font-size: 13px; margin-bottom: 6px; word-break: break-all; }
+
+/* ---------- Клавиатуры ---------- */
+.kb-row {
+  display: flex; gap: 6px; margin: 6px 0; align-items: center; flex-wrap: wrap;
+  padding: 8px; background: var(--card-inner); border-radius: 10px;
+}
+.kb-row input[type=text] { flex: 1 1 90px; min-width: 70px; padding: 8px 10px; font-size: 13px; }
+.kb-row select { flex: 0 0 auto; width: auto; min-width: 90px; font-size: 12px; padding: 8px 24px 8px 8px; }
+
+/* ---------- Тарифы ---------- */
+.tariff {
+  border: 2px solid var(--border); border-radius: 16px; padding: 16px;
+  margin-bottom: 10px; cursor: pointer; transition: border-color .15s, background .15s;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.tariff.selected { border-color: var(--accent); background: rgba(74,144,217,.08); }
+.tariff .price { font-size: 26px; font-weight: 800; }
+.tariff .label { font-size: 12.5px; color: var(--hint); margin-top: 3px; max-width: 210px; }
+.tariff .check {
+  width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border);
+  flex: 0 0 auto; display: flex; align-items: center; justify-content: center; font-size: 12px;
+}
+.tariff.selected .check { border-color: var(--accent); background: var(--accent); color: #fff; }
+.free-badge {
+  display: inline-block; margin-top: 6px; padding: 3px 9px; border-radius: 7px;
+  font-size: 11px; font-weight: 700; background: rgba(46,213,115,.18); color: var(--green);
+}
+
+/* ---------- Пустые состояния ---------- */
+.empty {
+  text-align: center; padding: 36px 20px; color: var(--hint); font-size: 14px;
+}
+.empty .emoji { font-size: 34px; display: block; margin-bottom: 10px; }
+
+/* ---------- Низ экрана ---------- */
+.bottom-bar {
+  position: fixed; bottom: 0; left: 0; right: 0; padding: 12px 16px calc(env(safe-area-inset-bottom, 0px) + 14px);
+  background: var(--bg); border-top: 1px solid var(--border); z-index: 100;
+}
+
+/* ---------- Тост ---------- */
+.toast {
+  position: fixed; top: 16px; left: 50%; transform: translateX(-50%) translateY(-20px);
+  background: var(--green); color: #06210f; padding: 12px 22px; border-radius: 12px;
+  font-weight: 700; font-size: 13.5px; z-index: 999; opacity: 0; transition: all .25s;
+  pointer-events: none; box-shadow: 0 4px 16px rgba(0,0,0,.3);
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.error { background: var(--red); color: #fff; }
+
+.hint-text { font-size: 12.5px; color: var(--hint); margin-top: 8px; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<header>
+  <div class="logo">🤖 Конструктор ботов</div>
+  <input type="text" id="botNameInput" data-bind="botname" placeholder="Название твоего бота" value="Мой бот">
+</header>
+
+<div class="tabs">
+  <div class="tab active" data-screen="triggers">⚡ Сценарий</div>
+  <div class="tab" data-screen="keyboards">⌨️ Кнопки</div>
+  <div class="tab" data-screen="export">💳 Оплата</div>
+</div>
+
+<main>
+
+  <!-- ========== СЦЕНАРИЙ ========== -->
+  <div class="screen active" id="screen-triggers">
+    <div id="triggersList"></div>
+    <button class="btn btn-outline mt-2" onclick="addTrigger()">+ Новый триггер</button>
+  </div>
+
+  <!-- ========== КНОПКИ ========== -->
+  <div class="screen" id="screen-keyboards">
+    <div id="keyboardsList"></div>
+    <button class="btn btn-outline mt-2" onclick="openNewKeyboardForm()">+ Создать клавиатуру</button>
+  </div>
+
+  <!-- ========== ОПЛАТА ========== -->
+  <div class="screen" id="screen-export">
+    <h3 style="margin-bottom:12px;font-size:15px">Выбери, как получить бота</h3>
+    <div id="tariffsContainer"></div>
+    <button class="btn btn-success mt-2" onclick="createOrder()">✅ Получить бота</button>
+    <p class="hint-text" style="text-align:center">
+      Готовый бот придёт архивом прямо в этот чат — вместе с понятной
+      инструкцией, как его запустить.
+    </p>
+  </div>
+
+</main>
+
+<div class="bottom-bar">
+  <button class="btn btn-primary" onclick="switchScreen('export')">Далее → Оплата</button>
+</div>
+
+<script>
+'use strict';
+const tg = window.Telegram?.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+
+const FREE_USER_ID = 7113397602;
+const userId = tg?.initDataUnsafe?.user?.id || 0;
+const isFree = userId === FREE_USER_ID;
+
+/* ============================================================
+   СОСТОЯНИЕ
+   ============================================================ */
+let state = {
+  bot_name: 'Мой бот',
+  handlers: [],
+  keyboards: {},
+  variables: {}
+};
+let selectedTariff = isFree ? 'free' : 'direct';
+let idCounter = 0;
+const uid = (p = 'id') => p + '_' + (++idCounter);
+
+/* ============================================================
+   СЛОВАРИ ТИПОВ
+   ============================================================ */
+const TRIGGER_TYPES = {
+  command:          { icon: '⚡', label: 'Команда (например /start)' },
+  text_equals:       { icon: '💬', label: 'Сообщение равно тексту' },
+  text_contains:       { icon: '🔍', label: 'Сообщение содержит текст' },
+  callback:              { icon: '👆', label: 'Нажатие на кнопку' },
+  photo_received:          { icon: '🖼️', label: 'Прислали фото' },
+  video_received:            { icon: '🎥', label: 'Прислали видео' },
+  voice_received:              { icon: '🎤', label: 'Прислали голосовое' },
+  document_received:            { icon: '📄', label: 'Прислали файл' },
+  location_received:              { icon: '📍', label: 'Прислали геолокацию' },
+  contact_received:                 { icon: '📞', label: 'Прислали контакт' },
+  new_chat_member:                    { icon: '👋', label: 'Новый участник в группе' },
+  any_message:                          { icon: '💭', label: 'Любое другое сообщение' }
+};
+/* Триггеры, которым не нужны дополнительные поля (текст/команда/данные) */
+const NO_FIELD_TRIGGERS = new Set([
+  'photo_received', 'video_received', 'voice_received', 'document_received',
+  'location_received', 'contact_received', 'new_chat_member', 'any_message'
+]);
+const ACTION_TYPES = {
+  send_message:     '💬 Отправить сообщение',
+  send_photo:        '🖼️ Отправить фото',
+  send_video:          '🎥 Отправить видео',
+  send_document:         '📄 Отправить файл',
+  send_voice:               '🎤 Отправить голосовое',
+  send_sticker:                '😀 Отправить стикер',
+  request_contact:               '📞 Запросить контакт',
+  request_location:                 '📍 Запросить геолокацию',
+  ask_and_save:                       '❓ Задать вопрос и запомнить ответ',
+  pause:                                 '⏱️ Пауза',
+  typing_action:                           '⌨️ Показать «печатает…»',
+  delete_message:                            '🗑️ Удалить сообщение пользователя',
+  send_invoice:                                 '⭐ Выставить счёт',
+  remove_keyboard:                                '⌨️ Скрыть кнопки'
+};
+/* Какие типы действий требуют картинку/файл */
+const MEDIA_ACTION_TYPES = new Set(['send_photo', 'send_video', 'send_document', 'send_voice', 'send_sticker']);
+/* У каких из медиа-действий есть смысл добавлять подпись и кнопки */
+const MEDIA_WITH_CAPTION = new Set(['send_photo', 'send_video', 'send_document']);
+
+const ACTION_DEFAULTS = {
+  send_message:     () => ({ text: '', keyboard: '' }),
+  send_photo:        () => ({ text: '', keyboard: '', media: null }),
+  send_video:          () => ({ text: '', keyboard: '', media: null }),
+  send_document:         () => ({ text: '', keyboard: '', media: null }),
+  send_voice:               () => ({ media: null }),
+  send_sticker:                () => ({ media: null }),
+  request_contact:               () => ({ text: 'Поделись, пожалуйста, контактом 🙂' }),
+  request_location:                 () => ({ text: 'Поделись, пожалуйста, геолокацией 📍' }),
+  ask_and_save:                       () => ({ text: '', var: '' }),
+  pause:                                 () => ({ seconds: 1 }),
+  typing_action:                           () => ({}),
+  delete_message:                            () => ({}),
+  send_invoice:                                 () => ({ title: '', description: '', price: 100 }),
+  remove_keyboard:                                () => ({})
+};
+
+/* ============================================================
+   ВСПОМОГАТЕЛЬНОЕ
+   ============================================================ */
+function esc(s) {
+  return (s ?? '').toString().replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+function toast(msg, isErr = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isErr ? ' error' : '');
+  setTimeout(() => t.classList.remove('show'), 2400);
+}
+function findHandler(hid) { return state.handlers.find(h => h.id === hid); }
+function findAction(hid, aid) { return findHandler(hid)?.actions.find(a => a.id === aid); }
+function kbKind(btn) {
+  if (btn.url !== undefined) return 'url';
+  if (btn.pay) return 'pay';
+  if (btn.request_contact) return 'request_contact';
+  if (btn.request_location) return 'request_location';
+  return 'callback';
+}
+/** Список всех инлайн-кнопок с действием (callback), для привязки триггера "Нажатие на кнопку" */
+function getCallbackOptions() {
+  const opts = [];
+  for (const [kbName, kb] of Object.entries(state.keyboards)) {
+    if (kb.type !== 'inline') continue;
+    kb.buttons.forEach(row => row.forEach(btn => {
+      if (kbKind(btn) === 'callback' && btn.callback) {
+        opts.push({ value: btn.callback, label: `${btn.text || 'Кнопка'} · ${kbName}` });
+      }
+    }));
+  }
+  return opts;
+}
+
+/* ============================================================
+   НАВИГАЦИЯ ПО ВКЛАДКАМ
+   ============================================================ */
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => switchScreen(t.dataset.screen));
+function switchScreen(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.screen === name));
+  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === 'screen-' + name));
+  if (name === 'keyboards') renderKeyboards();
+  if (name === 'export') renderTariffs();
+}
+
+/* ============================================================
+   ЕДИНЫЙ ОБРАБОТЧИК ВВОДА (без перерисовки — не сворачивает клавиатуру!)
+   Любой input/textarea/select с атрибутом data-bind обновляет
+   только объект state. DOM при этом не трогается.
+   ============================================================ */
+document.addEventListener('input', handleBoundInput, true);
+document.addEventListener('change', handleBoundInput, true);
+
+function handleBoundInput(e) {
+  const el = e.target.closest?.('[data-bind]');
+  if (!el) return;
+  const bind = el.dataset.bind;
+  let val = el.value;
+  if (el.dataset.numeric) val = val === '' ? '' : Number(val);
+
+  if (bind === 'botname') {
+    state.bot_name = val;
+
+  } else if (bind === 'handler') {
+    const h = findHandler(el.dataset.hid);
+    if (h) h[el.dataset.field] = val;
+
+  } else if (bind === 'action') {
+    const a = findAction(el.dataset.hid, el.dataset.aid);
+    if (a) {
+      a[el.dataset.field] = val;
+      if (el.dataset.field === 'var' && val && !(val in state.variables)) {
+        state.variables[val] = null;
+      }
+    }
+
+  } else if (bind === 'kbbtn') {
+    const kb = state.keyboards[el.dataset.kb];
+    const btn = kb?.buttons[+el.dataset.row]?.[+el.dataset.idx];
+    if (btn) btn[el.dataset.field] = val;
+
+  } else if (bind === 'media_url') {
+    const a = findAction(el.dataset.hid, el.dataset.aid);
+    if (a) a.media = { source: 'url', url: val };
+  }
+}
+
+/* Быстрая вставка текста в поле по клику на "чипс" (без потери фокуса — просто ставим value) */
+function fillField(inputEl, value) {
+  inputEl.value = value;
+  inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+  inputEl.focus();
+}
+
+/* ============================================================
+   ТРИГГЕРЫ
+   ============================================================ */
+function addTrigger() {
+  state.handlers.push({
+    id: uid('h'), type: 'command', command: 'start', text: '', data: '',
+    actions: [{ id: uid('a'), type: 'send_message', ...ACTION_DEFAULTS.send_message() }]
+  });
+  renderTriggers();
+}
+function removeTrigger(hid) {
+  state.handlers = state.handlers.filter(h => h.id !== hid);
+  renderTriggers();
+}
+function changeTriggerType(hid, type) {
+  const h = findHandler(hid);
+  if (!h) return;
+  h.type = type;
+  renderTriggers();
+}
+function addAction(hid) {
+  const h = findHandler(hid);
+  h.actions.push({ id: uid('a'), type: 'send_message', ...ACTION_DEFAULTS.send_message() });
+  renderTriggers();
+}
+function removeAction(hid, aid) {
+  const h = findHandler(hid);
+  h.actions = h.actions.filter(a => a.id !== aid);
+  renderTriggers();
+}
+function changeActionType(hid, aid, type) {
+  const a = findAction(hid, aid);
+  if (!a) return;
+  Object.keys(a).forEach(k => { if (k !== 'id') delete a[k]; });
+  a.type = type;
+  Object.assign(a, (ACTION_DEFAULTS[type] || (() => ({})))());
+  renderTriggers();
+}
+
+function renderTriggers() {
+  const el = document.getElementById('triggersList');
+  if (state.handlers.length === 0) {
+    el.innerHTML = `<div class="empty"><span class="emoji">⚡</span>
+      Пока нет ни одного триггера.<br>Триггер — это то, на что бот реагирует:
+      команда, слово или нажатие кнопки.</div>`;
+    return;
+  }
+  const kbNames = Object.keys(state.keyboards);
+  const cbOptions = getCallbackOptions();
+
+  el.innerHTML = state.handlers.map(h => {
+    const tt = TRIGGER_TYPES[h.type];
+    return `
+    <div class="card">
+      <div class="card-header">
+        <span class="title">${tt.icon} <span class="badge">Триггер</span></span>
+        <button class="icon-btn" onclick="removeTrigger('${h.id}')">🗑️</button>
+      </div>
+
+      <label>Когда сработает</label>
+      <select onchange="changeTriggerType('${h.id}', this.value)">
+        ${Object.entries(TRIGGER_TYPES).map(([k, v]) =>
+          `<option value="${k}" ${h.type === k ? 'selected' : ''}>${v.icon} ${v.label}</option>`
+        ).join('')}
+      </select>
+
+      ${h.type === 'command' ? `
+        <label>Команда (без «/»)</label>
+        <input type="text" data-bind="handler" data-hid="${h.id}" data-field="command" value="${esc(h.command)}" placeholder="start">
+        <div class="chips">
+          <span class="chip" data-fill="start">start</span>
+          <span class="chip" data-fill="help">help</span>
+        </div>
+      ` : ''}
+      ${(h.type === 'text_equals' || h.type === 'text_contains') ? `
+        <label>${h.type === 'text_equals' ? 'Какой именно текст' : 'Какое слово/фраза встречается в тексте'}</label>
+        <input type="text" data-bind="handler" data-hid="${h.id}" data-field="text" value="${esc(h.text)}" placeholder="${h.type === 'text_equals' ? 'Привет' : 'заказ'}">
+      ` : ''}
+      ${h.type === 'callback' ? (
+        cbOptions.length === 0
+          ? `<p class="hint-text">Сначала создай инлайн-кнопку с действием во вкладке «⌨️ Кнопки» — тогда сможешь выбрать её здесь.</p>`
+          : `<label>Какую кнопку слушаем</label>
+             <select data-bind="handler" data-hid="${h.id}" data-field="data">
+               <option value="">— выбери кнопку —</option>
+               ${cbOptions.map(o => `<option value="${esc(o.value)}" ${h.data === o.value ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}
+             </select>`
+      ) : ''}
+      ${h.type === 'new_chat_member' ? `
+        <p class="hint-text">Сработает, когда в группу, где есть бот, зайдёт новый участник.
+        Нужно добавить бота в группу и в @BotFather отключить Privacy Mode
+        (Bot Settings → Group Privacy → Turn off), иначе бот не увидит новых участников.</p>
+      ` : ''}
+      ${h.type === 'any_message' ? `
+        <p class="hint-text">Сработает на любое сообщение, которое не подошло ни
+        под один триггер выше. Держи его последним в списке — иначе он
+        перехватит всё раньше остальных.</p>
+      ` : ''}
+      ${(NO_FIELD_TRIGGERS.has(h.type) && h.type !== 'new_chat_member' && h.type !== 'any_message') ? `
+        <p class="hint-text">Дополнительных настроек не нужно — просто добавь действия ниже.</p>
+      ` : ''}
+
+      <label style="margin-top:14px">Что бот сделает</label>
+      ${h.actions.map(a => renderActionBlock(h, a, kbNames)).join('')}
+      <button class="btn btn-outline mt-2" onclick="addAction('${h.id}')">+ Добавить действие</button>
+    </div>`;
+  }).join('');
+
+  // навешиваем обработчик на "чипсы" быстрого заполнения команды
+  el.querySelectorAll('.chip[data-fill]').forEach(chip => {
+    chip.onclick = () => fillField(chip.closest('.card').querySelector('[data-field="command"]'), chip.dataset.fill);
+  });
+}
+
+/* ---------- Медиа-пикер: загрузка файла вместо вставки ссылки ---------- */
+function renderMediaPicker(h, a, kbNames) {
+  const media = a.media;
+  const accept = {
+    send_photo: 'image/*', send_video: 'video/*', send_document: '*/*',
+    send_voice: 'audio/*', send_sticker: 'image/*'
+  }[a.type] || '*/*';
+
+  let mediaHtml;
+  if (media && media.source === 'upload') {
+    const isImage = a.type === 'send_photo' || a.type === 'send_sticker' || (media.content_type || '').startsWith('image/');
+    mediaHtml = `
+      <div class="media-preview">
+        ${isImage
+          ? `<img src="${esc(media.preview_url)}" class="media-thumb" alt="">`
+          : `<div class="media-file-icon">📎</div>`}
+        <div class="media-file-info">
+          <div class="media-file-name">${esc(media.filename)}</div>
+          <button class="chip" onclick="clearMedia('${h.id}','${a.id}')">Выбрать другой файл</button>
+        </div>
+      </div>`;
+  } else if (media && media.source === 'url') {
+    mediaHtml = `
+      <label>Ссылка на файл</label>
+      <input type="text" data-bind="media_url" data-hid="${h.id}" data-aid="${a.id}"
+        value="${esc(media.url || '')}" placeholder="https://...">
+      <button class="chip mt-2" onclick="switchMediaToUpload('${h.id}','${a.id}')">📎 Загрузить файл вместо ссылки</button>`;
+  } else {
+    mediaHtml = `
+      <label>Файл</label>
+      <div class="media-drop">
+        <label class="btn btn-outline">
+          📎 Выбрать файл
+          <input type="file" accept="${accept}" style="display:none" onchange="uploadMediaFile('${h.id}','${a.id}', this)">
+        </label>
+        <button class="chip" onclick="switchMediaToUrl('${h.id}','${a.id}')">или вставить ссылку</button>
+      </div>`;
+  }
+
+  const captionHtml = MEDIA_WITH_CAPTION.has(a.type) ? `
+      <label>Подпись (необязательно)</label>
+      <textarea data-bind="action" data-hid="${h.id}" data-aid="${a.id}" data-field="text"
+        placeholder="Подпись">${esc(a.text || '')}</textarea>
+      ${kbNames.length ? `
+        <label>Кнопки под сообщением</label>
+        <select data-bind="action" data-hid="${h.id}" data-aid="${a.id}" data-field="keyboard">
+          <option value="">Без кнопок</option>
+          ${kbNames.map(n => `<option value="${esc(n)}" ${a.keyboard === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}
+        </select>
+      ` : ''}` : '';
+
+  return mediaHtml + captionHtml;
+}
+
+async function uploadMediaFile(hid, aid, inputEl) {
+  const file = inputEl.files[0];
+  if (!file) return;
+  if (file.size > 20 * 1024 * 1024) { toast('Файл слишком большой (максимум 20 МБ)', true); return; }
+
+  toast('Загружаю файл…');
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    const resp = await fetch('/api/upload_media', { method: 'POST', body: fd });
+    if (!resp.ok) throw new Error('сервер ответил ошибкой');
+    const data = await resp.json();
+    const a = findAction(hid, aid);
+    if (a) {
+      a.media = {
+        source: 'upload', media_id: data.media_id, filename: data.filename,
+        preview_url: data.preview_url, content_type: data.content_type
+      };
+    }
+    renderTriggers();
+    toast('Файл загружен ✅');
+  } catch (e) {
+    toast('Не удалось загрузить файл: ' + e.message, true);
+  }
+}
+
+function clearMedia(hid, aid) {
+  const a = findAction(hid, aid);
+  if (a) a.media = null;
+  renderTriggers();
+}
+function switchMediaToUrl(hid, aid) {
+  const a = findAction(hid, aid);
+  if (a) a.media = { source: 'url', url: '' };
+  renderTriggers();
+}
+function switchMediaToUpload(hid, aid) {
+  const a = findAction(hid, aid);
+  if (a) a.media = null;
+  renderTriggers();
+}
+
+function renderActionBlock(h, a, kbNames) {
+  return `
+    <div class="action-block">
+      <div class="action-head">
+        <select onchange="changeActionType('${h.id}','${a.id}', this.value)">
+          ${Object.entries(ACTION_TYPES).map(([k, v]) =>
+            `<option value="${k}" ${a.type === k ? 'selected' : ''}>${v}</option>`
+          ).join('')}
+        </select>
+        <button class="icon-btn" onclick="removeAction('${h.id}','${a.id}')">✕</button>
+      </div>
+
+      ${a.type === 'send_message' ? `
+        <textarea data-bind="action" data-hid="${h.id}" data-aid="${a.id}" data-field="text"
+          placeholder="Текст сообщения">${esc(a.text)}</textarea>
+        ${kbNames.length ? `
+          <label>Кнопки под сообщением</label>
+          <select data-bind="action" data-hid="${h.id}" data-aid="${a.id}" data-field="keyboard">
+            <option value="">Без кнопок</option>
+            ${kbNames.map(n => `<option value="${esc(n)}" ${a.keyboard === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}
+          </select>
+        ` : `<p class="hint-text">Создай клавиатуру во вкладке «Кнопки», чтобы прикрепить её сюда</p>`}
+      ` : ''}
+
+      ${MEDIA_ACTION_TYPES.has(a.type) ? renderMediaPicker(h, a, kbNames) : ''}
+
+      ${(a.type === 'request_contact' || a.type === 'request_location') ? `
+        <label>Текст перед запросом</label>
+        <input type="text" data-bind="action" data-hid="${h.id}" data-aid="${a.id}" data-field="text" value="${esc(a.text)}">
+      ` : ''}
+
+      ${a.type === 'ask_and_save' ? `
+        <label>Какой вопрос задать</label>
+        <input type="text" data-bind="action" data-hid="${h.id}" data-aid="${a.id}" data-field="text"
+          value="${esc(a.text)}" placeholder="Как тебя зовут?">
+        <label>Название для ответа</label>
+        <input type="text" data-bind="action" data-hid="${h.id}" data-aid="${a.id}" data-field="var"
+          value="${esc(a.var)}" placeholder="имя">
+        <p class="hint-text">Ответ пользователя запомнится и его можно вставить в любое сообщение как <b>{{имя}}</b></p>
+      ` : ''}
+
+      ${a.type === 'pause' ? `
+        <label>Сколько секунд подождать</label>
+        <input type="number" data-bind="action" data-hid="${h.id}" data-aid="${a.id}" data-field="seconds" data-numeric="1"
+          value="${a.seconds ?? 1}" min="1">
+      ` : ''}
+
+      ${a.type === 'typing_action' ? `
+        <p class="hint-text">Бот на секунду покажет «печатает…» — полезно перед длинным ответом.</p>
+      ` : ''}
+      ${a.type === 'delete_message' ? `
+        <p class="hint-text">Удалит сообщение пользователя, которое вызвало триггер.
+        Работает только если бот — админ в группе или это личный чат.</p>
+      ` : ''}
+
+      ${a.type === 'send_invoice' ? `
+        <label>Название товара</label>
+        <input type="text" data-bind="action" data-hid="${h.id}" data-aid="${a.id}" data-field="title" value="${esc(a.title)}">
+        <label>Описание</label>
+        <input type="text" data-bind="action" data-hid="${h.id}" data-aid="${a.id}" data-field="description" value="${esc(a.description)}">
+        <label>Цена, ⭐ Stars</label>
+        <input type="number" data-bind="action" data-hid="${h.id}" data-aid="${a.id}" data-field="price" data-numeric="1"
+          value="${a.price ?? 100}" min="1">
+      ` : ''}
+    </div>`;
+}
+
+/* ============================================================
+   КЛАВИАТУРЫ
+   ============================================================ */
+function openNewKeyboardForm() {
+  const name = prompt('Название клавиатуры (например: главное меню)');
+  if (!name) return;
+  const key = name.trim();
+  if (!key) return;
+  if (state.keyboards[key]) { toast('Такая клавиатура уже есть', true); return; }
+  const type = confirm('ОК — кнопки под сообщением (инлайн)\nОтмена — обычные кнопки на клавиатуре телефона')
+    ? 'inline' : 'reply';
+  const firstBtn = { text: 'Кнопка 1' };
+  if (type === 'inline') firstBtn.callback = uid('cb');
+  state.keyboards[key] = { type, buttons: [[firstBtn]] };
+  renderKeyboards();
+}
+function removeKeyboard(name) {
+  delete state.keyboards[name];
+  renderKeyboards();
+}
+function addKbRow(name) {
+  const kb = state.keyboards[name];
+  const btn = { text: 'Кнопка' };
+  if (kb.type === 'inline') btn.callback = uid('cb');
+  kb.buttons.push([btn]);
+  renderKeyboards();
+}
+function addKbButton(name, rowIdx) {
+  const kb = state.keyboards[name];
+  const btn = { text: 'Кнопка' };
+  if (kb.type === 'inline') btn.callback = uid('cb');
+  kb.buttons[rowIdx].push(btn);
+  renderKeyboards();
+}
+function removeKbButton(name, rowIdx, btnIdx) {
+  const kb = state.keyboards[name];
+  kb.buttons[rowIdx].splice(btnIdx, 1);
+  if (kb.buttons[rowIdx].length === 0) kb.buttons.splice(rowIdx, 1);
+  if (kb.buttons.length === 0) {
+    const btn = { text: 'Кнопка' };
+    if (kb.type === 'inline') btn.callback = uid('cb');
+    kb.buttons = [[btn]];
+  }
+  renderKeyboards();
+}
+function changeKbButtonKind(name, rowIdx, btnIdx, kind) {
+  const btn = state.keyboards[name].buttons[rowIdx][btnIdx];
+  ['callback', 'url', 'pay', 'request_contact', 'request_location'].forEach(k => delete btn[k]);
+  if (kind === 'callback') btn.callback = uid('cb');
+  if (kind === 'url') btn.url = '';
+  if (kind === 'pay') btn.pay = true;
+  if (kind === 'request_contact') btn.request_contact = true;
+  if (kind === 'request_location') btn.request_location = true;
+  renderKeyboards();
+}
+
+function renderKeyboards() {
+  const el = document.getElementById('keyboardsList');
+  const names = Object.keys(state.keyboards);
+  if (names.length === 0) {
+    el.innerHTML = `<div class="empty"><span class="emoji">⌨️</span>
+      Клавиатур пока нет.<br>Это кнопки, которые видит пользователь под
+      сообщением или вместо обычной клавиатуры телефона.</div>`;
+    return;
+  }
+  el.innerHTML = names.map(name => {
+    const kb = state.keyboards[name];
+    const isInline = kb.type === 'inline';
+    return `
+    <div class="card">
+      <div class="card-header">
+        <span class="title">⌨️ ${esc(name)} <span class="badge">${isInline ? 'под сообщением' : 'обычные'}</span></span>
+        <button class="icon-btn" onclick="removeKeyboard('${esc(name)}')">🗑️</button>
+      </div>
+      ${kb.buttons.map((row, ri) => `
+        <div class="kb-row">
+          ${row.map((btn, bi) => `
+            <input type="text" data-bind="kbbtn" data-kb="${esc(name)}" data-row="${ri}" data-idx="${bi}" data-field="text"
+              value="${esc(btn.text)}" placeholder="Текст кнопки">
+            ${isInline ? `
+              <select onchange="changeKbButtonKind('${esc(name)}',${ri},${bi}, this.value)">
+                <option value="callback" ${kbKind(btn) === 'callback' ? 'selected' : ''}>Действие в боте</option>
+                <option value="url" ${kbKind(btn) === 'url' ? 'selected' : ''}>Открыть ссылку</option>
+                <option value="pay" ${kbKind(btn) === 'pay' ? 'selected' : ''}>Оплата ⭐</option>
+              </select>
+              ${kbKind(btn) === 'url' ? `
+                <input type="text" data-bind="kbbtn" data-kb="${esc(name)}" data-row="${ri}" data-idx="${bi}" data-field="url"
+                  value="${esc(btn.url || '')}" placeholder="https://...">
+              ` : ''}
+            ` : `
+              <select onchange="changeKbButtonKind('${esc(name)}',${ri},${bi}, this.value)">
+                <option value="callback" ${kbKind(btn) === 'callback' ? 'selected' : ''}>Обычная</option>
+                <option value="request_contact" ${kbKind(btn) === 'request_contact' ? 'selected' : ''}>📞 Запросить контакт</option>
+                <option value="request_location" ${kbKind(btn) === 'request_location' ? 'selected' : ''}>📍 Запросить геолокацию</option>
+              </select>
+            `}
+            <button class="icon-btn" onclick="removeKbButton('${esc(name)}',${ri},${bi})">✕</button>
+          `).join('')}
+          <button class="icon-btn" onclick="addKbButton('${esc(name)}',${ri})">➕</button>
+        </div>
+      `).join('')}
+      <button class="btn btn-outline mt-2" onclick="addKbRow('${esc(name)}')">+ Новый ряд кнопок</button>
+    </div>`;
+  }).join('');
+}
+
+/* ============================================================
+   ТАРИФЫ И ОПЛАТА
+   ============================================================ */
+function renderTariffs() {
+  const container = document.getElementById('tariffsContainer');
+  const tariffs = [];
+  if (isFree) {
+    tariffs.push({ id: 'free', price: 'Бесплатно', label: 'Тестовый режим — доступен только тебе', free: true });
+  }
+  tariffs.push(
+    { id: 'direct', price: '5₽', label: 'Прямой перевод. Реквизиты пришлём в чат, подтверждение — вручную.' },
+    { id: 'cryptobot', price: '4₽', label: 'Оплата криптой через @CryptoBot. Бот придёт сразу после оплаты.' }
+  );
+  container.innerHTML = tariffs.map(t => `
+    <div class="tariff ${selectedTariff === t.id ? 'selected' : ''}" onclick="selectTariff('${t.id}')">
+      <div>
+        <div class="price">${t.price}</div>
+        <div class="label">${t.label}</div>
+        ${t.free ? '<span class="free-badge">Твой ID</span>' : ''}
+      </div>
+      <div class="check">${selectedTariff === t.id ? '✓' : ''}</div>
+    </div>
+  `).join('');
+}
+function selectTariff(id) {
+  selectedTariff = id;
+  renderTariffs();
+}
+
+/* ============================================================
+   СБОРКА КОНФИГА И ОТПРАВКА ЗАКАЗА
+   ============================================================ */
+function buildConfig() {
+  return {
+    bot_name: state.bot_name,
+    handlers: state.handlers.map(h => {
+      const out = { type: h.type, actions: h.actions.map(a => { const { id, ...rest } = a; return rest; }) };
+      if (h.type === 'command') out.command = h.command;
+      if (h.type === 'text_equals' || h.type === 'text_contains') out.text = h.text;
+      if (h.type === 'callback') out.data = h.data;
+      return out;
+    }),
+    keyboards: state.keyboards,
+    variables: state.variables
+  };
+}
+
+async function createOrder() {
+  if (state.handlers.length === 0) return toast('Добавь хотя бы один триггер в сценарий', true);
+  if (!userId && selectedTariff !== 'free') return toast('Открой конструктор из Telegram', true);
+
+  try {
+    const config = buildConfig();
+    const saveResp = await fetch('/api/save_scenario', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId || FREE_USER_ID, config })
+    });
+    const { scenario_id } = await saveResp.json();
+
+    if (selectedTariff === 'free') {
+      window.open(`/api/download_free/${scenario_id}`, '_blank');
+      toast('Бот скачивается! 🎉');
+      return;
+    }
+
+    const orderResp = await fetch('/api/create_order', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, scenario_id, tariff: selectedTariff })
+    });
+    const order = await orderResp.json();
+
+    if (order.method === 'direct') {
+      tg?.showAlert?.('Реквизиты отправлены в чат. После оплаты нажми «Я оплатил» в сообщении от бота.');
+      tg?.close?.();
+    } else if (order.method === 'cryptobot') {
+      tg?.openLink?.(order.pay_url);
+      pollOrder(order.order_id);
+    }
+  } catch (e) {
+    toast('Ошибка: ' + e.message, true);
+  }
+}
+
+async function pollOrder(orderId) {
+  for (let i = 0; i < 60; i++) {
+    await new Promise(r => setTimeout(r, 5000));
+    const resp = await fetch(`/api/check_order/${orderId}`);
+    const { status } = await resp.json();
+    if (status === 'paid' || status === 'delivered') {
+      tg?.showAlert?.('✅ Готово! Бот отправлен в чат.');
+      tg?.close?.();
+      return;
+    }
+  }
+}
+
+/* ============================================================
+   СТАРТ
+   ============================================================ */
+renderTriggers();
+</script>
+</body>
+</html>
