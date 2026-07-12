@@ -85,6 +85,14 @@ def init_db():
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            user_id INTEGER PRIMARY KEY,
+            username TEXT,
+            first_name TEXT,
+            started_at TEXT NOT NULL
+        )
+    """)
     conn.commit()
     conn.close()
 
@@ -428,6 +436,15 @@ def telegram_webhook():
             start_param = text.replace("/start", "").strip()
             if start_param:
                 gift.handle_gift_deeplink(tg_helper, user_id, username, first_name, start_param)
+
+            # Сохраняем пользователя для рассылок
+            db = get_db()
+            db.execute(
+                "INSERT OR REPLACE INTO users (user_id, username, first_name, started_at) VALUES (?, ?, ?, ?)",
+                (user_id, username, first_name, datetime.utcnow().isoformat())
+            )
+            db.commit()
+
             tg_send_message(chat_id,
                 "🤖 <b>Конструктор Telegram-ботов</b>\n\n"
                 "Собери своего бота без кода — просто нажми кнопку ниже.\n\n"
