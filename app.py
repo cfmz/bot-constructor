@@ -35,6 +35,7 @@ GENERATED_DIR.mkdir(exist_ok=True)
 MAIN_BOT_TOKEN = os.environ.get("MAIN_BOT_TOKEN", "")
 TELEGRAM_WEBHOOK_SECRET = os.environ.get("TELEGRAM_WEBHOOK_SECRET", "")
 PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "").rstrip("/")
+WEBAPP_URL = PUBLIC_BASE_URL
 ADMIN_ID = int(os.environ.get("ADMIN_ID", "0"))
 TELEGRAM_API = f"https://api.telegram.org/bot{MAIN_BOT_TOKEN}"
 
