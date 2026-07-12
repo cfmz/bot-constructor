@@ -932,7 +932,6 @@ function deleteButtonDraft(){
   closeModal();
   renderButtons(); renderStats(); persist();
 }
-
 /* ============================================================
    COMMIT DRAFT
    ============================================================ */
@@ -1146,7 +1145,6 @@ function renderPayment(){
   if(activeTab !== 'payment') return;
   var el = document.getElementById('tab-content');
   var totalActions = state.triggers.reduce(function(s,t){ return s + t.actions.length; }, 0);
-  var freeAllowed = currentTelegramUserId() === FREE_ALLOWED_ID;
 
   var html = '<div class="section-label">Сводка</div>';
   html += '<div class="card">';
@@ -1158,7 +1156,7 @@ function renderPayment(){
   html += '</div>';
 
   html += '<div class="section-label">Тариф</div>';
-  html += tariffCard('free', 'Бесплатно', freeAllowed ? 'Доступно вам' : 'Доступно только по приглашению', '0 ₽', !freeAllowed);
+  html += tariffCard('free', 'Бесплатно', 'Бесплатное создание бота (если есть приглашение или подарочная ссылка)', '0 ₽', false);
   html += tariffCard('stars', '7 Telegram Stars', 'Оплата внутри Telegram', '⭐ 7', false);
   html += tariffCard('crypto', 'CryptoBot', 'Оплата криптовалютой', '4 ₽', false);
 
@@ -1226,9 +1224,6 @@ function clearFieldError(id){
   if(el) el.classList.remove('input-error');
 }
 
-/* ============================================================
-   SUBMIT ORDER (ИСПРАВЛЕНО)
-   ============================================================ */
 function submitOrder(){
   if(!state.botName){ showToast('Укажите название бота', true); return; }
   if(!state.botToken || !state.botToken.trim()){ showToast('Токен от @BotFather обязателен', true); flagFieldError('bot-token-input'); return; }
@@ -1254,11 +1249,9 @@ function submitOrder(){
       return;
     }
 
-    // Бесплатное скачивание
     if(data.status === 'free_download'){
       if(data.url){
         showToast('Бот готов! Скачивание начинается...');
-        // Пробуем все способы открыть ссылку
         setTimeout(function(){
           if(window.Telegram && Telegram.WebApp && Telegram.WebApp.openLink){
             Telegram.WebApp.openLink(data.url);
@@ -1274,7 +1267,6 @@ function submitOrder(){
       return;
     }
 
-    // Stars
     if(data.status === 'stars_invoice'){
       showToast('Счёт выставлен, завершите оплату в Telegram');
       if(data.invoice_link && window.Telegram && Telegram.WebApp && Telegram.WebApp.openInvoice){
@@ -1289,7 +1281,6 @@ function submitOrder(){
       return;
     }
 
-    // Crypto
     if(data.status === 'crypto_link'){
       if(data.url){
         showToast('Открываем ссылку на оплату...');
