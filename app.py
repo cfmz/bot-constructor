@@ -24,6 +24,8 @@ from flask import Flask, jsonify, request, send_file, g
 import generator
 import payment
 import support
+import gift
+import broadcast
 
 BASE_DIR = Path(__file__).resolve().parent
 UPLOADS_DIR = BASE_DIR / "uploads"
@@ -49,6 +51,7 @@ app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_MB * 1024 * 1024
 
 # -------------------- init --------------------
 support.init_support()
+gift.init_gift()
 
 
 # -------------------- DB helpers --------------------
@@ -162,7 +165,7 @@ def tg_send_document(chat_id: int, file_path: Path, caption: str = ""):
     return data["result"]
 
 
-# -------------------- TgHelper for support module --------------------
+# -------------------- TgHelper --------------------
 class TgHelper:
     def send_message(self, chat_id, text, reply_markup=None):
         tg_send_message(chat_id, text, reply_markup)
@@ -259,7 +262,7 @@ def create_order():
         db = get_db()
 
         if tariff == "free":
-            if user_id != FREE_ALLOWED_ID:
+            if user_id != FREE_ALLOWED_ID and not gift.has_free_order(user_id):
                 return error("free tariff is available by invitation only", 403)
             db.execute(
                 "INSERT INTO orders (id, user_id, tariff, status, config) VALUES (?, ?, 'free', 'pending', ?)",
@@ -268,6 +271,8 @@ def create_order():
             db.commit()
             row = db.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
             finalize_paid_order(db, row)
+            if user_id != FREE_ALLOWED_ID:
+                gift.consume_gift(user_id)
             url = f"{PUBLIC_BASE_URL}/download/{order_id}" if PUBLIC_BASE_URL else f"/download/{order_id}"
             return jsonify({"ok": True, "status": "free_download", "url": url})
 
@@ -400,7 +405,7 @@ def telegram_webhook():
                 tg_send_message(chat_id, f"Оплата прошла, но не удалось отправить файл: {e}")
         return jsonify({"ok": True})
 
-    # callback_query (support buttons)
+    # callback_query
     if "callback_query" in update:
         cq = update["callback_query"]
         if support.handle_callback(tg_helper, cq, ADMIN_ID):
@@ -418,6 +423,9 @@ def telegram_webhook():
 
         # /start
         if text.startswith("/start"):
+            start_param = text.replace("/start", "").strip()
+            if start_param:
+                gift.handle_gift_deeplink(tg_helper, user_id, username, first_name, start_param)
             tg_send_message(chat_id,
                 "🤖 <b>Конструктор Telegram-ботов</b>\n\n"
                 "Собери своего бота без кода — просто нажми кнопку ниже.\n\n"
@@ -437,10 +445,18 @@ def telegram_webhook():
             )
             return jsonify({"ok": True})
 
-        # /help — support ticket
+        # /help
         if text.startswith("/help"):
             issue = text.replace("/help", "").strip()
             support.handle_ticket(tg_helper, user_id, username, first_name, issue, ADMIN_ID)
+            return jsonify({"ok": True})
+
+        # /gift
+        if gift.handle_gift_command(tg_helper, text, user_id, ADMIN_ID, PUBLIC_BASE_URL):
+            return jsonify({"ok": True})
+
+        # /all
+        if broadcast.handle_broadcast(tg_helper, text, user_id, ADMIN_ID):
             return jsonify({"ok": True})
 
         # admin reply to ticket
