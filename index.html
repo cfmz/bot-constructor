@@ -424,8 +424,6 @@ var STORAGE_KEY = 'bot_builder_config_v1';
 
 function uid(){ return 'id_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8); }
 
-/* Generic debounce helper — used to throttle persist() and the resize handler
-   so we don't do expensive work on every keystroke / every resize tick. */
 function debounce(fn, wait){
   var t;
   return function(){
@@ -435,7 +433,6 @@ function debounce(fn, wait){
   };
 }
 
-/* Russian pluralization helper: pl(5, 'кнопка','кнопки','кнопок') -> 'кнопок' */
 function pl(n, one, few, many){
   var mod10 = Math.abs(n) % 10, mod100 = Math.abs(n) % 100;
   if(mod100 > 10 && mod100 < 20) return many;
@@ -465,9 +462,6 @@ function restore(){
   }catch(e){}
 }
 
-/* ============================================================
-   ICONS
-   ============================================================ */
 var ICONS = {
   slash: '<path d="M8 5l4 14"/>',
   quote: '<path d="M7 8c-2 0-3 1.4-3 3.4 0 1.7 1.1 2.9 2.7 2.9.2 2-1 3.2-2.7 3.7M15 8c-2 0-3 1.4-3 3.4 0 1.7 1.1 2.9 2.7 2.9.2 2-1 3.2-2.7 3.7"/>',
@@ -509,7 +503,6 @@ function icon(name, cls){
   return '<svg class="'+(cls||'')+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+(ICONS[name]||ICONS.dots)+'</svg>';
 }
 
-/* Icon shown on each keyboard-button chip so the button's purpose is visible at a glance */
 var BTN_TYPE_ICONS = {
   bot_action: 'bolt',
   url: 'link',
@@ -524,9 +517,6 @@ var BTN_TYPE_ICONS = {
   request_poll: 'poll'
 };
 
-/* ============================================================
-   DEFINITIONS
-   ============================================================ */
 var TRIGGER_DEFS = {
   command:            { label:'Команда',                 icon:'slash',   fields:[{key:'value', label:'Введите команду', placeholder:'start', type:'command'}] },
   text_equals:         { label:'Точный текст',             icon:'quote',   fields:[{key:'value', label:'Текст сообщения целиком', placeholder:'Привет', type:'text'}] },
@@ -579,9 +569,6 @@ var REPLY_BTN_TYPES = {
   webapp: 'Открыть мини-приложение'
 };
 
-/* ============================================================
-   MODAL ENGINE
-   ============================================================ */
 var draft = null;
 var draftCtx = null;
 
@@ -898,10 +885,6 @@ function renderButtonModalBody(types){
   }
   openModal(draftCtx.kind === 'buttonEdit' ? 'Кнопка' : 'Новая кнопка', body, footer);
 }
-/* Renders the value field for the currently selected button type.
-   Every type in INLINE_BTN_TYPES / REPLY_BTN_TYPES is covered explicitly,
-   including stars_payment and request_poll, and types with no extra field
-   get a friendly note instead of an empty gap. */
 function renderButtonValueField(){
   var kb = state.keyboards.find(function(k){ return k.id === draftCtx.kbId; });
   var isInline = kb && kb.type === 'inline';
@@ -933,7 +916,6 @@ function renderButtonValueField(){
   if(draft.type === 'request_poll'){
     return '<div class="field"><label>Текст для опроса</label><input type="text" value="'+escapeHtml(draft.value)+'" placeholder="О чём спросить?" oninput="draft.value=this.value"><div class="field-hint">Пользователю будет предложено создать опрос.</div></div>';
   }
-  /* plain, request_contact, request_location — намеренно без дополнительного поля */
   return '<div class="note-box">Эта кнопка не требует дополнительных настроек.</div>';
 }
 function setButtonType(key){
@@ -1019,7 +1001,6 @@ function render(){
   else renderPayment();
 }
 
-/* Small header strip with live counts — quick overview without switching tabs */
 function renderStats(){
   var el = document.getElementById('stats-strip');
   if(!el) return;
@@ -1245,16 +1226,21 @@ function clearFieldError(id){
   if(el) el.classList.remove('input-error');
 }
 
+/* ============================================================
+   SUBMIT ORDER (ИСПРАВЛЕНО)
+   ============================================================ */
 function submitOrder(){
   if(!state.botName){ showToast('Укажите название бота', true); return; }
   if(!state.botToken || !state.botToken.trim()){ showToast('Токен от @BotFather обязателен', true); flagFieldError('bot-token-input'); return; }
   if(state.triggers.length === 0){ showToast('Добавьте хотя бы один триггер', true); return; }
+
   var btn = document.getElementById('submit-btn');
   var originalHtml = btn.innerHTML;
   btn.innerHTML = '<div class="spinner"></div>Отправляем...';
   btn.disabled = true;
   var userId = currentTelegramUserId();
   var payload = { config: buildConfig(), tariff: state.tariff, user_id: userId };
+
   fetch('/api/create_order', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1262,33 +1248,64 @@ function submitOrder(){
   }).then(function(res){ return res.json(); }).then(function(data){
     btn.innerHTML = originalHtml;
     btn.disabled = false;
-    if(!data || !data.status){
-      showToast('Не удалось создать заказ', true);
+
+    if(!data || !data.ok){
+      showToast(data?.error || 'Не удалось создать заказ', true);
       return;
     }
-    if(data.status === 'free_download' && data.url){
-      showToast('Бот готов, открываем ссылку…');
-      window.location.href = data.url;
-    } else if(data.status === 'stars_invoice'){
+
+    // Бесплатное скачивание
+    if(data.status === 'free_download'){
+      if(data.url){
+        showToast('Бот готов! Скачивание начинается...');
+        // Пробуем все способы открыть ссылку
+        setTimeout(function(){
+          if(window.Telegram && Telegram.WebApp && Telegram.WebApp.openLink){
+            Telegram.WebApp.openLink(data.url);
+          } else if(window.Telegram && Telegram.WebApp && Telegram.WebApp.openTelegramLink){
+            Telegram.WebApp.openTelegramLink(data.url);
+          } else {
+            window.open(data.url, '_blank');
+          }
+        }, 500);
+      } else {
+        showToast('Бот готов, но ссылка не получена. Проверьте PUBLIC_BASE_URL на сервере.', true);
+      }
+      return;
+    }
+
+    // Stars
+    if(data.status === 'stars_invoice'){
       showToast('Счёт выставлен, завершите оплату в Telegram');
-      if(data.invoice_link && window.Telegram && Telegram.WebApp.openInvoice){
-        Telegram.WebApp.openInvoice(data.invoice_link, function(){
-          if(window.Telegram && Telegram.WebApp) Telegram.WebApp.close();
+      if(data.invoice_link && window.Telegram && Telegram.WebApp && Telegram.WebApp.openInvoice){
+        Telegram.WebApp.openInvoice(data.invoice_link, function(status){
+          if(status === 'paid' && window.Telegram && Telegram.WebApp){
+            Telegram.WebApp.close();
+          }
         });
       } else if(window.Telegram && Telegram.WebApp){
         Telegram.WebApp.close();
       }
-    } else if(data.status === 'crypto_link' && data.url){
-      showToast('Открываем ссылку на оплату…');
-      if(window.Telegram && Telegram.WebApp.openLink){
-        Telegram.WebApp.openLink(data.url);
-      } else {
-        window.open(data.url, '_blank');
-      }
-    } else {
-      showToast('Заказ создан');
+      return;
     }
-  }).catch(function(){
+
+    // Crypto
+    if(data.status === 'crypto_link'){
+      if(data.url){
+        showToast('Открываем ссылку на оплату...');
+        if(window.Telegram && Telegram.WebApp && Telegram.WebApp.openLink){
+          Telegram.WebApp.openLink(data.url);
+        } else {
+          window.open(data.url, '_blank');
+        }
+      } else {
+        showToast('Ссылка на оплату не получена. Проверьте CRYPTO_PAY_TOKEN.', true);
+      }
+      return;
+    }
+
+    showToast('Заказ создан, статус: ' + (data.status || 'неизвестен'));
+  }).catch(function(e){
     btn.innerHTML = originalHtml;
     btn.disabled = false;
     showToast('Ошибка сети. Попробуйте ещё раз', true);
