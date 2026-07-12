@@ -43,25 +43,21 @@
   #app{max-width:560px; margin:0 auto; padding:16px 16px 110px; min-height:100vh; position:relative; z-index:1;}
   ::selection{background:rgba(255,154,102,0.35);}
 
-  /* ---------- Ambient animated background ---------- */
   .bg-fx{position:fixed; inset:0; overflow:hidden; z-index:0; pointer-events:none;}
-  .blob{position:absolute; border-radius:50%; filter:blur(64px) hue-rotate(0deg); opacity:.5; will-change:transform, filter;}
-  .blob-a{width:340px; height:340px; left:-90px; top:-70px; background:radial-gradient(circle, var(--glow-a), transparent 70%); animation:float-a 19s ease-in-out infinite, hue-drift 28s ease-in-out infinite alternate;}
-  .blob-b{width:300px; height:300px; right:-110px; top:22%; background:radial-gradient(circle, var(--glow-c), transparent 70%); animation:float-b 23s ease-in-out infinite, hue-drift 33s ease-in-out infinite alternate;}
-  .blob-c{width:380px; height:380px; left:18%; bottom:-180px; background:radial-gradient(circle, var(--glow-b), transparent 70%); animation:float-c 27s ease-in-out infinite, hue-drift 24s ease-in-out infinite alternate;}
-  .blob-d{width:220px; height:220px; right:8%; bottom:8%; background:radial-gradient(circle, var(--glow-a), transparent 70%); opacity:.35; animation:float-d 21s ease-in-out infinite, hue-drift 19s ease-in-out infinite alternate;}
+  .blob{position:absolute; border-radius:50%; filter:blur(64px); opacity:.5; will-change:transform;}
+  .blob-a{width:340px; height:340px; left:-90px; top:-70px; background:radial-gradient(circle, var(--glow-a), transparent 70%); animation:float-a 42s ease-in-out infinite;}
+  .blob-b{width:300px; height:300px; right:-110px; top:22%; background:radial-gradient(circle, var(--glow-c), transparent 70%); animation:float-b 46s ease-in-out infinite;}
+  .blob-c{width:380px; height:380px; left:18%; bottom:-180px; background:radial-gradient(circle, var(--glow-b), transparent 70%); animation:float-c 50s ease-in-out infinite;}
+  .blob-d{width:220px; height:220px; right:8%; bottom:8%; background:radial-gradient(circle, var(--glow-a), transparent 70%); opacity:.35; animation:float-d 40s ease-in-out infinite;}
   @keyframes float-a{0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(34px,42px) scale(1.08);}}
   @keyframes float-b{0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(-30px,34px) scale(0.94);}}
   @keyframes float-c{0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(24px,-38px) scale(1.06);}}
   @keyframes float-d{0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(-18px,-24px) scale(1.12);}}
-  @keyframes hue-drift{ from{filter:blur(64px) hue-rotate(0deg);} to{filter:blur(64px) hue-rotate(26deg);} }
 
-  /* Tiny twinkling stars — nods to Telegram Stars, generated in JS so positions feel organic */
-  .spark{position:absolute; border-radius:50%; background:#fff; opacity:0; box-shadow:0 0 6px 1px rgba(255,255,255,0.55); animation-name:twinkle; animation-iteration-count:infinite; animation-timing-function:ease-in-out;}
+  .spark{position:absolute; border-radius:50%; background:#fff; opacity:0; box-shadow:0 0 6px 1px rgba(255,255,255,0.55); will-change:transform, opacity; animation-name:twinkle; animation-iteration-count:infinite; animation-timing-function:ease-in-out;}
   @keyframes twinkle{0%,100%{opacity:0;} 50%{opacity:.85;}}
 
-  /* Faint film-grain overlay for a bit of tactile depth */
-  .grain{position:fixed; inset:-20px; z-index:2; pointer-events:none; opacity:.035; mix-blend-mode:overlay;
+  .grain{position:fixed; inset:-20px; z-index:2; pointer-events:none; opacity:.035;
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
 
   @media (prefers-reduced-motion: reduce){
@@ -72,7 +68,6 @@
     .live-dot{animation:none !important;}
   }
 
-  /* ---------- Topbar ---------- */
   .topbar{padding:6px 4px 18px;}
   .topbar .eyebrow{display:flex; align-items:center; gap:7px; font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--text-faint); font-weight:600; margin-bottom:6px;}
   .live-dot{width:6px; height:6px; border-radius:50%; background:var(--accent-2); flex:none; animation:pulse-dot 2.2s ease-in-out infinite;}
@@ -91,14 +86,22 @@
   .token-input:focus{border-color:var(--border-strong); color:var(--text);}
   .token-input::placeholder{color:var(--text-faint);}
 
-  /* ---------- Tab bar ---------- */
+  .stats-strip{display:flex; gap:8px; margin-top:14px;}
+  .stat-chip{
+    flex:1; display:flex; align-items:center; gap:8px; background:var(--surface); border:1px solid var(--border);
+    border-radius:13px; padding:9px 11px; min-width:0;
+  }
+  .stat-chip .s-ico{width:26px; height:26px; flex:none; border-radius:9px; display:flex; align-items:center; justify-content:center; background:rgba(255,154,102,0.16); color:var(--accent);}
+  .stat-chip .s-ico svg{width:13px; height:13px;}
+  .stat-chip.teal .s-ico{background:rgba(111,216,200,0.16); color:var(--accent-2);}
+  .stat-chip .s-num{font-size:14px; font-weight:750; line-height:1.1;}
+  .stat-chip .s-lbl{font-size:10.5px; color:var(--text-faint); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+
   .tabbar{
     position:relative; display:grid; grid-template-columns:repeat(3,1fr);
     background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:4px;
-    margin-bottom:18px; backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+    margin-bottom:18px; backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px); will-change:transform;
   }
-  /* Pill position/width are set from JS by measuring the active button's real box,
-     so it always lines up exactly under the tab — no drift from calc() approximations. */
   .tab-pill{
     position:absolute; top:4px; left:4px; bottom:4px; width:0;
     background:linear-gradient(135deg, var(--accent), #ff7f7f);
@@ -113,13 +116,14 @@
   .tab-btn.active{color:var(--accent-ink);}
   .tab-btn svg{width:15px; height:15px; flex:none;}
 
-  /* ---------- Cards ---------- */
   @keyframes cardIn{ from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);} }
   .card{
     background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg);
     padding:16px; margin-bottom:12px; backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
     box-shadow:var(--shadow-lift); animation:cardIn .34s ease both;
     transition:border-color .2s ease, transform .2s ease;
+    transform:translateZ(0); will-change:transform; contain:layout style;
+    content-visibility:auto; contain-intrinsic-size:1px 320px;
   }
   .card:nth-of-type(1){animation-delay:0s;}
   .card:nth-of-type(2){animation-delay:.05s;}
@@ -135,6 +139,7 @@
     border:1px solid rgba(255,255,255,0.12); color:var(--accent);
   }
   .card-icon svg{width:19px; height:19px;}
+  .card-icon.teal{background:linear-gradient(150deg, rgba(111,216,200,0.28), rgba(111,216,200,0.1)); color:var(--accent-2);}
   .card-title-wrap{flex:1; min-width:0;}
   .card-title{font-size:15px; font-weight:650; letter-spacing:-0.005em;}
   .card-sub{font-size:12.5px; color:var(--text-faint); margin-top:2px; word-break:break-word;}
@@ -147,7 +152,6 @@
   .icon-btn.danger{color:var(--danger);}
   .icon-btn:active{transform:scale(0.94);}
 
-  /* ---------- Chips (actions / kb buttons) ---------- */
   .chip-list{display:flex; flex-wrap:wrap; gap:8px; margin-top:14px;}
   .chip{
     display:flex; align-items:center; gap:8px; background:var(--surface-2); border:1px solid var(--border);
@@ -168,28 +172,29 @@
   }
   .chip-add svg{width:12px; height:12px;}
 
-  /* ---------- Keyboard rows ---------- */
   .kb-type-badge{
     display:inline-flex; align-items:center; gap:5px; font-size:10.5px; font-weight:700; letter-spacing:.04em;
     text-transform:uppercase; color:var(--accent-2); background:rgba(111,216,200,0.13); border:1px solid rgba(111,216,200,0.25);
     padding:3px 8px; border-radius:8px; margin-top:4px;
   }
+  .kb-type-badge--reply{color:var(--glow-a); background:rgba(255,154,102,0.13); border-color:rgba(255,154,102,0.25);}
   .kb-name-input{
     background:transparent; border:none; outline:none; color:var(--text); font-size:15px; font-weight:650;
     padding:0; width:100%; font-family:inherit;
   }
-  .kb-row{margin-top:10px; padding-top:10px; border-top:1px dashed var(--border);}
-  .kb-row:first-of-type{border-top:none; margin-top:14px; padding-top:0;}
-  /* Row header (label + delete) is its own flex line, so the delete button never
-     jumps around when the buttons below it wrap onto multiple lines. */
+  .kb-count{font-size:12px; color:var(--text-faint); margin-top:3px;}
+  .kb-row{margin-top:14px;}
+  .kb-row + .kb-row{margin-top:10px; padding-top:10px; border-top:1px dashed var(--border);}
   .kb-row-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:9px;}
   .kb-row-label{font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--text-faint);}
-  .kb-row-buttons{display:flex; flex-wrap:wrap; align-items:center; gap:7px;}
+  .kb-row-buttons{display:flex; flex-wrap:wrap; align-items:center; gap:7px; min-width:0;}
   .kb-btn-chip{
     display:flex; align-items:center; gap:7px; background:var(--surface-2); border:1px solid var(--border);
-    border-radius:11px; padding:7px 8px 7px 11px; font-size:12.5px; cursor:pointer; max-width:180px;
+    border-radius:11px; padding:7px 8px 7px 11px; font-size:12.5px; cursor:pointer; max-width:190px;
   }
-  .kb-btn-chip span{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:600;}
+  .kb-btn-chip .chip-icon{color:var(--accent-2); flex:none; display:flex;}
+  .kb-btn-chip .chip-icon svg{width:12px; height:12px;}
+  .kb-btn-chip span{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:600; max-width:140px;}
   .row-del{
     width:26px; height:26px; border-radius:9px; border:1px solid var(--border); background:transparent;
     color:var(--text-faint); display:flex; align-items:center; justify-content:center; cursor:pointer; flex:none;
@@ -202,10 +207,10 @@
   }
   .ghost-btn svg{width:13px; height:13px;}
 
-  /* ---------- Empty state ---------- */
   .empty-state{
     display:flex; flex-direction:column; align-items:center; text-align:center; padding:52px 22px;
     background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); backdrop-filter:blur(16px);
+    will-change:transform;
   }
   .empty-icon{
     width:66px; height:66px; border-radius:20px; display:flex; align-items:center; justify-content:center; margin-bottom:18px;
@@ -216,7 +221,6 @@
   .empty-title{font-size:16px; font-weight:650; margin-bottom:6px;}
   .empty-sub{font-size:13px; color:var(--text-faint); line-height:1.5; max-width:280px; margin-bottom:20px;}
 
-  /* ---------- Buttons ---------- */
   .btn{
     border:none; border-radius:14px; padding:13px 20px; font-size:14.5px; font-weight:650; cursor:pointer;
     font-family:inherit; display:inline-flex; align-items:center; justify-content:center; gap:8px;
@@ -229,7 +233,6 @@
   .btn-block{width:100%;}
   .btn-secondary{background:var(--surface-2); color:var(--text); border:1px solid var(--border);}
 
-  /* ---------- Type grid (picker) ---------- */
   .type-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
   .type-opt{
     display:flex; flex-direction:column; align-items:flex-start; gap:10px; background:var(--surface-2);
@@ -243,7 +246,6 @@
   .type-opt .t-icon svg{width:15px; height:15px;}
   .type-opt .t-label{font-size:12.5px; font-weight:650; color:var(--text); line-height:1.25;}
 
-  /* ---------- Form fields ---------- */
   .field{margin-bottom:14px;}
   .field label{display:block; font-size:12.5px; font-weight:650; color:var(--text-dim); margin-bottom:7px;}
   .field input[type=text], .field input[type=number], .field textarea, .field select{
@@ -277,18 +279,19 @@
   .prefix-field{display:flex; align-items:center; background:var(--surface-2); border:1px solid var(--border); border-radius:12px; overflow:hidden;}
   .prefix-field span{padding:12px 0 12px 13px; color:var(--text-faint); font-weight:650;}
   .prefix-field input{border:none !important; background:transparent !important; padding-left:2px !important;}
-  .segmented{display:flex; gap:8px;}
+  .segmented{display:flex; gap:8px; flex-wrap:wrap;}
   .segmented button{
-    flex:1; padding:11px; border-radius:12px; border:1px solid var(--border); background:var(--surface-2);
-    color:var(--text-dim); font-weight:650; font-size:12.5px; cursor:pointer; font-family:inherit;
+    flex:1 1 auto; min-width:128px; max-width:100%; padding:10px 12px; border-radius:12px; border:1px solid var(--border); background:var(--surface-2);
+    color:var(--text-dim); font-weight:650; font-size:12.5px; line-height:1.3; cursor:pointer; font-family:inherit;
+    text-align:center; word-break:break-word; overflow-wrap:break-word;
   }
   .segmented button.active{background:linear-gradient(135deg, var(--accent), #ff7f7f); color:var(--accent-ink); border-color:transparent;}
   .note-box{background:rgba(255,154,102,0.09); border:1px solid rgba(255,154,102,0.22); border-radius:12px; padding:12px 13px; font-size:12.5px; color:var(--text-dim); line-height:1.5;}
 
-  /* ---------- Modal ---------- */
   .modal-overlay{
     position:fixed; inset:0; background:rgba(12,7,15,0.62); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px);
     display:flex; align-items:flex-end; justify-content:center; z-index:100; opacity:1; transition:opacity .2s ease;
+    will-change:transform;
   }
   .modal-overlay.hidden{opacity:0; pointer-events:none;}
   .modal-panel{
@@ -307,7 +310,6 @@
   .modal-body{padding:6px 18px 18px; overflow-y:auto; -webkit-overflow-scrolling:touch;}
   .modal-footer{padding:14px 18px 22px; flex:none; border-top:1px solid var(--border);}
 
-  /* ---------- Payment tab ---------- */
   .summary-row{display:flex; align-items:center; justify-content:space-between; padding:11px 0; border-bottom:1px solid var(--border); font-size:13.5px;}
   .summary-row:last-child{border-bottom:none;}
   .summary-row .s-label{color:var(--text-faint);}
@@ -331,7 +333,8 @@
   .tariff-price{font-size:14px; font-weight:700; color:var(--accent);}
   .sticky-cta{position:sticky; bottom:14px; margin-top:18px;}
 
-  .section-label{font-size:12px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--text-faint); margin:20px 4px 10px;}
+  .section-label{position:relative; font-size:12px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--text-faint); margin:20px 4px 10px; padding-left:12px;}
+  .section-label::before{content:''; position:absolute; left:0; top:2px; bottom:2px; width:3px; border-radius:2px; background:linear-gradient(180deg, var(--accent), var(--accent-2));}
   .section-label:first-child{margin-top:0;}
 
   .toast{
@@ -371,6 +374,7 @@
         <input id="bot-token-input" class="token-input" type="text" placeholder="Токен от @BotFather" oninput="state.botToken=this.value; clearFieldError('bot-token-input'); syncSummary(); persist();">
       </div>
       <div class="field-required-hint">Токен <span class="token-required">обязателен</span> — получите его у @BotFather в Telegram и вставьте сюда</div>
+      <div class="stats-strip" id="stats-strip"></div>
     </header>
 
     <nav class="tabbar" id="tabbar">
@@ -408,9 +412,6 @@
   <div id="toast" class="toast"></div>
 
 <script>
-/* ============================================================
-   STATE
-   ============================================================ */
 var state = {
   botName: '',
   botToken: '',
@@ -423,12 +424,31 @@ var STORAGE_KEY = 'bot_builder_config_v1';
 
 function uid(){ return 'id_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8); }
 
-function persist(){
-  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){
-    /* Most likely quota exceeded because a big base64 file is embedded in state.
-       Not fatal for the current session, so we just skip saving silently. */
-  }
+/* Generic debounce helper — used to throttle persist() and the resize handler
+   so we don't do expensive work on every keystroke / every resize tick. */
+function debounce(fn, wait){
+  var t;
+  return function(){
+    var args = arguments, ctx = this;
+    clearTimeout(t);
+    t = setTimeout(function(){ fn.apply(ctx, args); }, wait);
+  };
 }
+
+/* Russian pluralization helper: pl(5, 'кнопка','кнопки','кнопок') -> 'кнопок' */
+function pl(n, one, few, many){
+  var mod10 = Math.abs(n) % 10, mod100 = Math.abs(n) % 100;
+  if(mod100 > 10 && mod100 < 20) return many;
+  if(mod10 === 1) return one;
+  if(mod10 > 1 && mod10 < 5) return few;
+  return many;
+}
+
+function persistNow(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
+}
+var persist = debounce(persistNow, 2000);
+
 function restore(){
   try{
     var raw = localStorage.getItem(STORAGE_KEY);
@@ -478,14 +498,34 @@ var ICONS = {
   check: '<path d="M5 13l4.5 4.5L19 7"/>',
   lock: '<rect x="5" y="10.5" width="14" height="9" rx="2.2"/><path d="M8 10.5V8a4 4 0 018 0v2.5"/>',
   close: '<path d="M6 6l12 12M18 6L6 18"/>',
-  upload: '<path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3"/>'
+  upload: '<path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3"/>',
+  webapp: '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 12h8M12 8v8"/>',
+  copy: '<rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>',
+  poll: '<path d="M15 21v-8M9 21V9M3 21v-4"/>',
+  inline: '<path d="M4 6h16M4 12h16M4 18h10"/>',
+  globe: '<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/>'
 };
 function icon(name, cls){
   return '<svg class="'+(cls||'')+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+(ICONS[name]||ICONS.dots)+'</svg>';
 }
 
+/* Icon shown on each keyboard-button chip so the button's purpose is visible at a glance */
+var BTN_TYPE_ICONS = {
+  bot_action: 'bolt',
+  url: 'link',
+  stars_payment: 'star',
+  webapp: 'webapp',
+  switch_inline: 'search',
+  switch_inline_current: 'globe',
+  copy_text: 'copy',
+  plain: 'cursor',
+  request_contact: 'contact',
+  request_location: 'pin',
+  request_poll: 'poll'
+};
+
 /* ============================================================
-   DEFINITIONS: triggers / actions / keyboard buttons
+   DEFINITIONS
    ============================================================ */
 var TRIGGER_DEFS = {
   command:            { label:'Команда',                 icon:'slash',   fields:[{key:'value', label:'Введите команду', placeholder:'start', type:'command'}] },
@@ -521,14 +561,29 @@ var ACTION_DEFS = {
 };
 var ACTION_ORDER = ['send_message','send_photo','send_video','send_document','send_voice','send_sticker','request_contact','request_location','ask_and_save','pause','typing','delete_message','send_invoice','remove_keyboard'];
 
-var INLINE_BTN_TYPES = { bot_action:'Действие в боте', url:'Открыть ссылку', stars_payment:'Оплата Stars' };
-var REPLY_BTN_TYPES  = { plain:'Обычная кнопка', request_contact:'Запросить контакт', request_location:'Запросить геолокацию' };
+var INLINE_BTN_TYPES = {
+  bot_action: 'Действие в боте',
+  url: 'Открыть ссылку',
+  stars_payment: 'Оплата Stars',
+  webapp: 'Открыть мини-приложение',
+  switch_inline: 'Переключиться в инлайн (другой чат)',
+  switch_inline_current: 'Переключиться в инлайн (этот чат)',
+  copy_text: 'Скопировать текст в буфер'
+};
+
+var REPLY_BTN_TYPES = {
+  plain: 'Обычная кнопка',
+  request_contact: 'Запросить контакт',
+  request_location: 'Запросить геолокацию',
+  request_poll: 'Создать опрос',
+  webapp: 'Открыть мини-приложение'
+};
 
 /* ============================================================
    MODAL ENGINE
    ============================================================ */
-var draft = null;       // working copy of the entity being created/edited
-var draftCtx = null;    // { kind, ...ids }
+var draft = null;
+var draftCtx = null;
 
 function openModal(title, bodyHtml, footerHtml){
   document.getElementById('modal-title').textContent = title;
@@ -544,7 +599,6 @@ function saveBtn(label, disabled){
   return '<button class="btn btn-primary btn-block" '+(disabled?'disabled style="opacity:.5"':'')+' onclick="commitDraft()">'+icon('check')+label+'</button>';
 }
 
-/* ---- generic field renderer ---- */
 function renderFieldsHtml(fields, params){
   var html = '';
   fields.forEach(function(f){
@@ -591,15 +645,7 @@ function renderCallbackSelect(selectedVal){
   html += '</select>';
   return html;
 }
-/* ---- media upload field (drag & drop / browse) ----
-   Upload flow: try POST /api/upload_media first so only a small URL/file_id
-   ends up in the saved config (this is what should actually be sent to
-   Telegram's sendPhoto/sendVideo). If that endpoint isn't available yet,
-   fall back to embedding the file as base64 — fine for quick testing with
-   small files, but large videos may fail to submit or fail to send from
-   the bot, since Telegram's API needs a real URL or an uploaded file, not
-   a data: URI, and big base64 blobs can also exceed the server's request
-   size limit. */
+
 var currentModalRerender = null;
 var UPLOAD_ENDPOINT = '/api/upload_media';
 
@@ -642,20 +688,11 @@ function dzBrowse(key){
   var input = document.getElementById('file-'+key);
   if(input) input.click();
 }
-function dzDragOver(e, key){
-  e.preventDefault(); e.stopPropagation();
-  var zone = document.getElementById('dz-'+key);
-  if(zone) zone.classList.add('drag');
-}
-function dzDragLeave(e, key){
-  e.preventDefault(); e.stopPropagation();
-  var zone = document.getElementById('dz-'+key);
-  if(zone) zone.classList.remove('drag');
-}
+function dzDragOver(e, key){ e.preventDefault(); e.stopPropagation(); var zone = document.getElementById('dz-'+key); if(zone) zone.classList.add('drag'); }
+function dzDragLeave(e, key){ e.preventDefault(); e.stopPropagation(); var zone = document.getElementById('dz-'+key); if(zone) zone.classList.remove('drag'); }
 function dzDrop(e, key, kind, limitMB){
   e.preventDefault(); e.stopPropagation();
-  var zone = document.getElementById('dz-'+key);
-  if(zone) zone.classList.remove('drag');
+  var zone = document.getElementById('dz-'+key); if(zone) zone.classList.remove('drag');
   var file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
   if(file) handleMediaFile(file, key, kind, limitMB);
 }
@@ -673,19 +710,12 @@ function dzClear(key){
 }
 function handleMediaFile(file, key, kind, limitMB){
   if(!draft) return;
-  if(file.size > limitMB*1024*1024){
-    showToast('Файл слишком большой. Максимум '+limitMB+' МБ', true);
-    return;
-  }
+  if(file.size > limitMB*1024*1024){ showToast('Файл слишком большой. Максимум '+limitMB+' МБ', true); return; }
   draft.params[key+'_name'] = file.name;
   draft.params[key+'_size'] = file.size;
   draft.params[key+'_uploading'] = true;
   if(typeof currentModalRerender === 'function') currentModalRerender();
-
-  var fd = new FormData();
-  fd.append('file', file);
-  fd.append('kind', kind);
-
+  var fd = new FormData(); fd.append('file', file); fd.append('kind', kind);
   fetch(UPLOAD_ENDPOINT, { method:'POST', body: fd })
     .then(function(res){ if(!res.ok) throw new Error('upload_failed'); return res.json(); })
     .then(function(data){
@@ -696,9 +726,6 @@ function handleMediaFile(file, key, kind, limitMB){
       showToast('Файл «'+file.name+'» загружен ('+formatBytes(file.size)+')');
     })
     .catch(function(){
-      // Сервер загрузки недоступен — временно встраиваем файл как base64.
-      // Подходит только для небольших файлов; для реальной отправки в Telegram
-      // нужен рабочий /api/upload_media, возвращающий прямую ссылку на файл.
       var reader = new FileReader();
       reader.onload = function(){
         if(!draft) return;
@@ -725,11 +752,8 @@ function renderKeyboardAttach(selectedId){
   html += '</select></div>';
   return html;
 }
-function escapeHtml(str){
-  return String(str==null?'':str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
+function escapeHtml(str){ return String(str==null?'':str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-/* ---- type grid renderer (used for trigger / action pickers) ---- */
 function renderTypeGrid(order, defs, onSelectFn){
   var html = '<div class="type-grid">';
   order.forEach(function(key){
@@ -763,12 +787,7 @@ function openTriggerModal(triggerId){
 }
 function openTriggerConfigModal(){
   var def = TRIGGER_DEFS[draft.type];
-  var body = '';
-  if(def.fields.length){
-    body += renderFieldsHtml(def.fields, draft.params);
-  } else {
-    body += '<div class="note-box">Этот триггер срабатывает автоматически и не требует дополнительных настроек.</div>';
-  }
+  var body = def.fields.length ? renderFieldsHtml(def.fields, draft.params) : '<div class="note-box">Этот триггер срабатывает автоматически и не требует дополнительных настроек.</div>';
   var footer = saveBtn('Сохранить триггер');
   if(draftCtx.kind === 'triggerEdit'){
     footer = '<button class="btn btn-secondary btn-block" style="margin-bottom:10px" onclick="deleteTrigger(\''+draft.id+'\'); closeModal();">'+icon('trash')+'Удалить триггер</button>' + saveBtn('Сохранить изменения');
@@ -777,11 +796,11 @@ function openTriggerConfigModal(){
 }
 function deleteTrigger(id){
   state.triggers = state.triggers.filter(function(t){ return t.id !== id; });
-  renderScenario(); persist();
+  renderScenario(); renderStats(); persist();
 }
 
 /* ============================================================
-   ACTIONS (belong to a trigger)
+   ACTIONS
    ============================================================ */
 var actionTargetTriggerId = null;
 
@@ -806,12 +825,7 @@ function openActionModal(triggerId, actionId){
 function openActionConfigModal(){
   currentModalRerender = openActionConfigModal;
   var def = ACTION_DEFS[draft.type];
-  var body = '';
-  if(def.fields.length){
-    body += renderFieldsHtml(def.fields, draft.params);
-  } else {
-    body += '<div class="note-box">У этого действия нет дополнительных настроек. При желании прикрепите клавиатуру ниже.</div>';
-  }
+  var body = def.fields.length ? renderFieldsHtml(def.fields, draft.params) : '<div class="note-box">У этого действия нет дополнительных настроек. При желании прикрепите клавиатуру ниже.</div>';
   body += renderKeyboardAttach(draft.keyboardId);
   var footer = saveBtn('Добавить действие');
   if(draftCtx.kind === 'actionEdit'){
@@ -823,28 +837,28 @@ function deleteAction(triggerId, actionId){
   var t = state.triggers.find(function(x){ return x.id === triggerId; });
   if(!t) return;
   t.actions = t.actions.filter(function(a){ return a.id !== actionId; });
-  renderScenario(); persist();
+  renderScenario(); renderStats(); persist();
 }
 
 /* ============================================================
    KEYBOARDS
    ============================================================ */
 function openKeyboardTypeModal(){
-  var body = '<div class="type-grid">' +
+  openModal('Тип клавиатуры',
+    '<div class="type-grid">' +
     '<button class="type-opt" onclick="pickKeyboardType(\'inline\')"><div class="t-icon">'+icon('keys')+'</div><div class="t-label">Инлайн-кнопки<br><span style="font-weight:400;color:var(--text-faint)">под сообщением</span></div></button>' +
     '<button class="type-opt" onclick="pickKeyboardType(\'reply\')"><div class="t-icon">'+icon('keyboardoff')+'</div><div class="t-label">Обычные кнопки<br><span style="font-weight:400;color:var(--text-faint)">в поле ввода</span></div></button>' +
-    '</div>';
-  openModal('Тип клавиатуры', body, '');
+    '</div>', '');
 }
 function pickKeyboardType(type){
   var kb = { id: uid(), name: type==='inline' ? 'Новая инлайн-клавиатура' : 'Новая клавиатура', type: type, rows: [[]] };
   state.keyboards.push(kb);
   closeModal();
-  renderButtons(); persist();
+  renderButtons(); renderStats(); persist();
 }
 function deleteKeyboard(id){
   state.keyboards = state.keyboards.filter(function(k){ return k.id !== id; });
-  renderButtons(); persist();
+  renderButtons(); renderStats(); persist();
 }
 function addRow(kbId){
   var kb = state.keyboards.find(function(k){ return k.id === kbId; });
@@ -857,20 +871,20 @@ function deleteRow(kbId, rowIdx){
   if(!kb) return;
   kb.rows.splice(rowIdx, 1);
   if(kb.rows.length === 0) kb.rows.push([]);
-  renderButtons(); persist();
+  renderButtons(); renderStats(); persist();
 }
 
-/* ---- keyboard button modal ---- */
 function openButtonModal(kbId, rowIdx, btnIdx){
   var kb = state.keyboards.find(function(k){ return k.id === kbId; });
   if(!kb) return;
   var existing = (btnIdx !== null && btnIdx !== undefined) ? kb.rows[rowIdx][btnIdx] : null;
   var types = kb.type === 'inline' ? INLINE_BTN_TYPES : REPLY_BTN_TYPES;
-  draft = existing ? { text: existing.text, type: existing.type, value: existing.value || '' } : { text: '', type: Object.keys(types)[0], value: '' };
+  draft = existing ? { text: existing.text, type: existing.type, value: existing.value || '', price: existing.price || '' } : { text: '', type: Object.keys(types)[0], value: '', price: '' };
   draftCtx = { kind: existing ? 'buttonEdit' : 'buttonNew', kbId: kbId, rowIdx: rowIdx, btnIdx: existing ? btnIdx : null };
   renderButtonModalBody(types);
 }
 function renderButtonModalBody(types){
+  currentModalRerender = function(){ renderButtonModalBody(types); };
   var body = '<div class="field"><label>Текст на кнопке</label><input type="text" value="'+escapeHtml(draft.text)+'" placeholder="Например: Каталог" oninput="draft.text=this.value"></div>';
   body += '<div class="field"><label>Что делает кнопка</label><div class="segmented" id="btn-type-seg">';
   Object.keys(types).forEach(function(key){
@@ -884,32 +898,61 @@ function renderButtonModalBody(types){
   }
   openModal(draftCtx.kind === 'buttonEdit' ? 'Кнопка' : 'Новая кнопка', body, footer);
 }
+/* Renders the value field for the currently selected button type.
+   Every type in INLINE_BTN_TYPES / REPLY_BTN_TYPES is covered explicitly,
+   including stars_payment and request_poll, and types with no extra field
+   get a friendly note instead of an empty gap. */
 function renderButtonValueField(){
+  var kb = state.keyboards.find(function(k){ return k.id === draftCtx.kbId; });
+  var isInline = kb && kb.type === 'inline';
+
   if(draft.type === 'bot_action'){
-    return '<div class="field"><label>Идентификатор действия</label><input type="text" value="'+escapeHtml(draft.value)+'" placeholder="Например: open_catalog" oninput="draft.value=this.value"><div class="field-hint">По этому идентификатору можно будет привязать триггер «Нажатие кнопки» во вкладке «Сценарий».</div></div>';
+    return '<div class="field"><label>Идентификатор действия (callback_data)</label><input type="text" value="'+escapeHtml(draft.value)+'" placeholder="Например: open_menu" oninput="draft.value=this.value"><div class="field-hint">По этому идентификатору можно привязать триггер «Нажатие кнопки» во вкладке «Сценарий».</div></div>';
   }
   if(draft.type === 'url'){
     return '<div class="field"><label>Ссылка</label><input type="text" value="'+escapeHtml(draft.value)+'" placeholder="https://..." oninput="draft.value=this.value"></div>';
   }
-  return '';
+  if(draft.type === 'stars_payment'){
+    var html = '<div class="field"><label>Название товара</label><input type="text" value="'+escapeHtml(draft.value)+'" placeholder="Например: Доступ к материалам" oninput="draft.value=this.value"><div class="field-hint">Это название пользователь увидит в счёте на оплату Stars.</div></div>';
+    html += '<div class="field"><label>Цена, Stars</label><input type="number" min="1" step="1" value="'+escapeHtml(draft.price)+'" placeholder="Например: 50" oninput="draft.price=this.value"><div class="field-hint">Сколько Stars спишется у пользователя при нажатии на кнопку.</div></div>';
+    return html;
+  }
+  if(draft.type === 'webapp'){
+    var label = isInline ? 'Ссылка на мини-приложение' : 'Ссылка';
+    return '<div class="field"><label>'+label+'</label><input type="text" value="'+escapeHtml(draft.value)+'" placeholder="https://..." oninput="draft.value=this.value"><div class="field-hint">Пользователь откроет Web App прямо из кнопки.</div></div>';
+  }
+  if(draft.type === 'switch_inline'){
+    return '<div class="field"><label>Текст запроса</label><input type="text" value="'+escapeHtml(draft.value)+'" placeholder="Введи текст..." oninput="draft.value=this.value"><div class="field-hint">Пользователь перейдёт в инлайн-режим бота в другом чате.</div></div>';
+  }
+  if(draft.type === 'switch_inline_current'){
+    return '<div class="field"><label>Текст запроса</label><input type="text" value="'+escapeHtml(draft.value)+'" placeholder="Введи текст..." oninput="draft.value=this.value"><div class="field-hint">Пользователь переключится в инлайн-режим в этом же чате.</div></div>';
+  }
+  if(draft.type === 'copy_text'){
+    return '<div class="field"><label>Текст для копирования</label><input type="text" value="'+escapeHtml(draft.value)+'" placeholder="Текст, который скопируется" oninput="draft.value=this.value"><div class="field-hint">При нажатии на кнопку текст скопируется в буфер обмена.</div></div>';
+  }
+  if(draft.type === 'request_poll'){
+    return '<div class="field"><label>Текст для опроса</label><input type="text" value="'+escapeHtml(draft.value)+'" placeholder="О чём спросить?" oninput="draft.value=this.value"><div class="field-hint">Пользователю будет предложено создать опрос.</div></div>';
+  }
+  /* plain, request_contact, request_location — намеренно без дополнительного поля */
+  return '<div class="note-box">Эта кнопка не требует дополнительных настроек.</div>';
 }
 function setButtonType(key){
   draft.type = key;
+  draft.value = '';
+  draft.price = '';
   var kb = state.keyboards.find(function(k){ return k.id === draftCtx.kbId; });
   var types = kb.type === 'inline' ? INLINE_BTN_TYPES : REPLY_BTN_TYPES;
   renderButtonModalBody(types);
 }
 function deleteButtonDraft(){
   var kb = state.keyboards.find(function(k){ return k.id === draftCtx.kbId; });
-  if(kb){
-    kb.rows[draftCtx.rowIdx].splice(draftCtx.btnIdx, 1);
-  }
+  if(kb) kb.rows[draftCtx.rowIdx].splice(draftCtx.btnIdx, 1);
   closeModal();
-  renderButtons(); persist();
+  renderButtons(); renderStats(); persist();
 }
 
 /* ============================================================
-   COMMIT DRAFT (unified save handler)
+   COMMIT DRAFT
    ============================================================ */
 function commitDraft(){
   if(!draftCtx) return;
@@ -934,22 +977,22 @@ function commitDraft(){
       break;
     case 'buttonNew':
       var kbN = state.keyboards.find(function(k){ return k.id === draftCtx.kbId; });
-      if(kbN){ kbN.rows[draftCtx.rowIdx].push({ id: uid(), text: draft.text, type: draft.type, value: draft.value }); }
+      if(kbN){ kbN.rows[draftCtx.rowIdx].push({ id: uid(), text: draft.text, type: draft.type, value: draft.value, price: draft.price }); }
       break;
     case 'buttonEdit':
       var kbE = state.keyboards.find(function(k){ return k.id === draftCtx.kbId; });
       if(kbE){
         var btn = kbE.rows[draftCtx.rowIdx][draftCtx.btnIdx];
-        if(btn){ btn.text = draft.text; btn.type = draft.type; btn.value = draft.value; }
+        if(btn){ btn.text = draft.text; btn.type = draft.type; btn.value = draft.value; btn.price = draft.price; }
       }
       break;
   }
   closeModal();
-  renderScenario(); renderButtons(); persist();
+  renderScenario(); renderButtons(); renderStats(); persist();
 }
 
 /* ============================================================
-   RENDER: TABS
+   RENDER TABS
    ============================================================ */
 function setTab(tab){
   activeTab = tab;
@@ -957,10 +1000,6 @@ function setTab(tab){
   updateTabPill();
   render();
 }
-/* Measures the active tab button's real box and positions the pill exactly
-   under it. Avoids the old calc()+translateX(100%) drift, where the pill's
-   own (slightly-too-narrow) width was used as the step size, so it landed
-   further left than tab 2 and tab 3 the more tabs there were. */
 function updateTabPill(){
   var idx = ['scenario','buttons','payment'].indexOf(activeTab);
   var bar = document.getElementById('tabbar');
@@ -972,7 +1011,7 @@ function updateTabPill(){
   pill.style.left = Math.round(btnRect.left - barRect.left) + 'px';
   pill.style.width = Math.round(btnRect.width) + 'px';
 }
-window.addEventListener('resize', updateTabPill);
+window.addEventListener('resize', debounce(updateTabPill, 200));
 
 function render(){
   if(activeTab === 'scenario') renderScenario();
@@ -980,7 +1019,27 @@ function render(){
   else renderPayment();
 }
 
-/* ---- Scenario tab ---- */
+/* Small header strip with live counts — quick overview without switching tabs */
+function renderStats(){
+  var el = document.getElementById('stats-strip');
+  if(!el) return;
+  var totalActions = state.triggers.reduce(function(s,t){ return s + t.actions.length; }, 0);
+  var totalButtons = state.keyboards.reduce(function(s,kb){ return s + kb.rows.reduce(function(rs,row){ return rs + row.length; }, 0); }, 0);
+  el.innerHTML =
+    '<div class="stat-chip">'+
+      '<div class="s-ico">'+icon('wand')+'</div>'+
+      '<div><div class="s-num">'+state.triggers.length+'</div><div class="s-lbl">'+pl(state.triggers.length,'триггер','триггера','триггеров')+'</div></div>'+
+    '</div>'+
+    '<div class="stat-chip">'+
+      '<div class="s-ico">'+icon('bolt')+'</div>'+
+      '<div><div class="s-num">'+totalActions+'</div><div class="s-lbl">'+pl(totalActions,'действие','действия','действий')+'</div></div>'+
+    '</div>'+
+    '<div class="stat-chip teal">'+
+      '<div class="s-ico">'+icon('keys')+'</div>'+
+      '<div><div class="s-num">'+totalButtons+'</div><div class="s-lbl">'+pl(totalButtons,'кнопка','кнопки','кнопок')+'</div></div>'+
+    '</div>';
+}
+
 function renderScenario(){
   if(activeTab !== 'scenario') return;
   var el = document.getElementById('tab-content');
@@ -998,6 +1057,10 @@ function renderScenario(){
   state.triggers.forEach(function(t){
     var def = TRIGGER_DEFS[t.type];
     var sub = triggerSubtitle(t);
+    if(t.actions.length){
+      var actionsNote = t.actions.length+' '+pl(t.actions.length,'действие','действия','действий');
+      sub = sub ? (sub+' · '+actionsNote) : actionsNote;
+    }
     html += '<div class="card">';
     html += '<div class="card-head">';
     html += '<div class="card-icon">'+icon(def.icon)+'</div>';
@@ -1034,7 +1097,6 @@ function triggerSubtitle(t){
   return null;
 }
 
-/* ---- Buttons tab ---- */
 function renderButtons(){
   if(activeTab !== 'buttons') return;
   var el = document.getElementById('tab-content');
@@ -1050,12 +1112,15 @@ function renderButtons(){
   }
   var html = '';
   state.keyboards.forEach(function(kb){
+    var isInline = kb.type === 'inline';
+    var totalBtns = kb.rows.reduce(function(s,row){ return s + row.length; }, 0);
     html += '<div class="card">';
     html += '<div class="card-head">';
-    html += '<div class="card-icon">'+icon(kb.type==='inline' ? 'keys' : 'keyboardoff')+'</div>';
+    html += '<div class="card-icon'+(isInline?' teal':'')+'">'+icon(isInline ? 'keys' : 'keyboardoff')+'</div>';
     html += '<div class="card-title-wrap">';
     html += '<input class="kb-name-input" type="text" value="'+escapeHtml(kb.name)+'" oninput="renameKeyboard(\''+kb.id+'\', this.value)">';
-    html += '<div class="kb-type-badge">'+(kb.type==='inline'?'Инлайн':'Обычная')+'</div>';
+    html += '<div class="kb-type-badge'+(isInline?'':' kb-type-badge--reply')+'">'+(isInline?'Инлайн':'Обычная')+'</div>';
+    html += '<div class="kb-count">'+totalBtns+' '+pl(totalBtns,'кнопка','кнопки','кнопок')+' · '+kb.rows.length+' '+pl(kb.rows.length,'строка','строки','строк')+'</div>';
     html += '</div>';
     html += '<div class="card-actions"><button class="icon-btn danger" onclick="deleteKeyboard(\''+kb.id+'\')">'+icon('trash')+'</button></div>';
     html += '</div>';
@@ -1068,7 +1133,8 @@ function renderButtons(){
       html += '</div>';
       html += '<div class="kb-row-buttons">';
       row.forEach(function(btn, bIdx){
-        html += '<div class="kb-btn-chip" onclick="openButtonModal(\''+kb.id+'\','+rIdx+','+bIdx+')"><span>'+escapeHtml(btn.text || 'Без текста')+'</span></div>';
+        var tIcon = BTN_TYPE_ICONS[btn.type] || 'dots';
+        html += '<div class="kb-btn-chip" onclick="openButtonModal(\''+kb.id+'\','+rIdx+','+bIdx+')"><span class="chip-icon">'+icon(tIcon)+'</span><span>'+escapeHtml(btn.text || 'Без текста')+'</span></div>';
       });
       html += '<button class="chip-add" style="padding:7px 11px" onclick="openButtonModal(\''+kb.id+'\','+rIdx+',null)">'+icon('plus')+'Кнопка</button>';
       html += '</div>';
@@ -1085,7 +1151,9 @@ function renameKeyboard(id, value){
   if(kb){ kb.name = value; persist(); }
 }
 
-/* ---- Payment tab ---- */
+/* ============================================================
+   PAYMENT
+   ============================================================ */
 var FREE_ALLOWED_ID = 7113397602;
 function currentTelegramUserId(){
   try{
@@ -1114,7 +1182,6 @@ function renderPayment(){
   html += tariffCard('crypto', 'CryptoBot', 'Оплата криптовалютой', '4 ₽', false);
 
   html += '<div class="sticky-cta"><button class="btn btn-primary btn-block" id="submit-btn" onclick="submitOrder()">'+icon('bolt')+'Получить бота</button></div>';
-
   el.innerHTML = html;
 }
 function summaryRow(label, val){
@@ -1128,17 +1195,9 @@ function tariffCard(key, title, sub, price, disabled){
     '<div class="tariff-price">'+price+'</div>'+
   '</div>';
 }
-function selectTariff(key){
-  state.tariff = key;
-  renderPayment(); persist();
-}
-function syncSummary(){
-  if(activeTab === 'payment') renderPayment();
-}
+function selectTariff(key){ state.tariff = key; renderPayment(); persist(); }
+function syncSummary(){ if(activeTab === 'payment') renderPayment(); }
 
-/* ============================================================
-   BUILD CONFIG + SUBMIT
-   ============================================================ */
 function buildConfig(){
   return {
     bot_name: state.botName,
@@ -1159,7 +1218,7 @@ function buildConfig(){
         name: kb.name,
         type: kb.type,
         rows: kb.rows.map(function(row){
-          return row.map(function(b){ return { text: b.text, type: b.type, value: b.value || null }; });
+          return row.map(function(b){ return { text: b.text, type: b.type, value: b.value || null, price: b.type === 'stars_payment' ? (parseInt(b.price, 10) || 0) : null }; });
         })
       };
     }),
@@ -1173,12 +1232,11 @@ function showToast(msg, isError){
   t.className = 'toast show' + (isError ? ' error' : '');
   setTimeout(function(){ t.classList.remove('show'); }, 3200);
 }
-
 function flagFieldError(id){
   var el = document.getElementById(id);
   if(!el) return;
   el.classList.remove('input-error');
-  void el.offsetWidth; // restart animation
+  void el.offsetWidth;
   el.classList.add('input-error');
   el.focus();
 }
@@ -1188,27 +1246,15 @@ function clearFieldError(id){
 }
 
 function submitOrder(){
-  if(!state.botName){
-    showToast('Укажите название бота', true);
-    return;
-  }
-  if(!state.botToken || !state.botToken.trim()){
-    showToast('Токен от @BotFather обязателен', true);
-    flagFieldError('bot-token-input');
-    return;
-  }
-  if(state.triggers.length === 0){
-    showToast('Добавьте хотя бы один триггер', true);
-    return;
-  }
+  if(!state.botName){ showToast('Укажите название бота', true); return; }
+  if(!state.botToken || !state.botToken.trim()){ showToast('Токен от @BotFather обязателен', true); flagFieldError('bot-token-input'); return; }
+  if(state.triggers.length === 0){ showToast('Добавьте хотя бы один триггер', true); return; }
   var btn = document.getElementById('submit-btn');
   var originalHtml = btn.innerHTML;
   btn.innerHTML = '<div class="spinner"></div>Отправляем...';
   btn.disabled = true;
-
   var userId = currentTelegramUserId();
   var payload = { config: buildConfig(), tariff: state.tariff, user_id: userId };
-
   fetch('/api/create_order', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1255,7 +1301,7 @@ function submitOrder(){
 function initSparkles(){
   var layer = document.getElementById('bg-fx');
   if(!layer || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  var count = 22;
+  var count = 10;
   for(var i=0; i<count; i++){
     var s = document.createElement('span');
     s.className = 'spark';
@@ -1283,6 +1329,7 @@ function init(){
   document.getElementById('bot-name-input').value = state.botName;
   document.getElementById('bot-token-input').value = state.botToken;
   initSparkles();
+  renderStats();
   setTab('scenario');
 }
 init();
