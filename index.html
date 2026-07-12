@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Конструктор ботов</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root{
+    --bg-0:#1b1220;
+    --bg-1:#241730;
+    --glow-a:#ff9a66;
+    --glow-b:#ff6f91;
+    --glow-c:#6fd8c8;
+    --surface:rgba(255,255,255,0.055);
+    --surface-2:rgba(255,255,255,0.09);
+    --surface-3:rgba(255,255,255,0.14);
+    --border:rgba(255,255,255,0.10);
+    --border-strong:rgba(255,255,255,0.20);
+    --text:#f6ede6;
+    --text-dim:#c7b7c2;
+    --text-faint:#8d7c8a;
+    --accent:#ff9a66;
+    --accent-ink:#2a1509;
+    --accent-2:#6fd8c8;
+    --danger:#ff7a7a;
+    --r-lg:22px;
+    --r-md:16px;
+    --r-sm:11px;
+    --shadow-lift:0 14px 34px -14px rgba(0,0,0,0.55);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    color:var(--text);
+    background:linear-gradient(180deg, var(--bg-0), var(--bg-1) 60%, #1a1020 100%);
+    background-attachment:fixed;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  #app{max-width:560px; margin:0 auto; padding:16px 16px 110px; min-height:100vh; position:relative; z-index:1;}
+  ::selection{background:rgba(255,154,102,0.35);}
+
+  /* ---------- Ambient animated background ---------- */
+  .bg-fx{position:fixed; inset:0; overflow:hidden; z-index:0; pointer-events:none;}
+  .blob{position:absolute; border-radius:50%; filter:blur(64px) hue-rotate(0deg); opacity:.5; will-change:transform, filter;}
+  .blob-a{width:340px; height:340px; left:-90px; top:-70px; background:radial-gradient(circle, var(--glow-a), transparent 70%); animation:float-a 19s ease-in-out infinite, hue-drift 28s ease-in-out infinite alternate;}
+  .blob-b{width:300px; height:300px; right:-110px; top:22%; background:radial-gradient(circle, var(--glow-c), transparent 70%); animation:float-b 23s ease-in-out infinite, hue-drift 33s ease-in-out infinite alternate;}
+  .blob-c{width:380px; height:380px; left:18%; bottom:-180px; background:radial-gradient(circle, var(--glow-b), transparent 70%); animation:float-c 27s ease-in-out infinite, hue-drift 24s ease-in-out infinite alternate;}
+  .blob-d{width:220px; height:220px; right:8%; bottom:8%; background:radial-gradient(circle, var(--glow-a), transparent 70%); opacity:.35; animation:float-d 21s ease-in-out infinite, hue-drift 19s ease-in-out infinite alternate;}
+  @keyframes float-a{0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(34px,42px) scale(1.08);}}
+  @keyframes float-b{0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(-30px,34px) scale(0.94);}}
+  @keyframes float-c{0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(24px,-38px) scale(1.06);}}
+  @keyframes float-d{0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(-18px,-24px) scale(1.12);}}
+  @keyframes hue-drift{ from{filter:blur(64px) hue-rotate(0deg);} to{filter:blur(64px) hue-rotate(26deg);} }
+
+  /* Tiny twinkling stars — nods to Telegram Stars, generated in JS so positions feel organic */
+  .spark{position:absolute; border-radius:50%; background:#fff; opacity:0; box-shadow:0 0 6px 1px rgba(255,255,255,0.55); animation-name:twinkle; animation-iteration-count:infinite; animation-timing-function:ease-in-out;}
+  @keyframes twinkle{0%,100%{opacity:0;} 50%{opacity:.85;}}
+
+  /* Faint film-grain overlay for a bit of tactile depth */
+  .grain{position:fixed; inset:-20px; z-index:2; pointer-events:none; opacity:.035; mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
+
+  @media (prefers-reduced-motion: reduce){
+    .blob{animation:none !important;}
+    .card{animation:none !important;}
+    .spark{animation:none !important; opacity:.3 !important;}
+    .btn-primary::after{animation:none !important; display:none;}
+    .live-dot{animation:none !important;}
+  }
+
+  /* ---------- Topbar ---------- */
+  .topbar{padding:6px 4px 18px;}
+  .topbar .eyebrow{display:flex; align-items:center; gap:7px; font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--text-faint); font-weight:600; margin-bottom:6px;}
+  .live-dot{width:6px; height:6px; border-radius:50%; background:var(--accent-2); flex:none; animation:pulse-dot 2.2s ease-in-out infinite;}
+  @keyframes pulse-dot{0%{box-shadow:0 0 0 0 rgba(111,216,200,.55);} 70%{box-shadow:0 0 0 6px rgba(111,216,200,0);} 100%{box-shadow:0 0 0 0 rgba(111,216,200,0);}}
+  .token-required{color:var(--glow-b); font-weight:700;}
+  .name-input{
+    width:100%; background:transparent; border:none; outline:none; color:var(--text);
+    font-size:26px; font-weight:650; letter-spacing:-0.01em; padding:0; font-family:inherit;
+  }
+  .name-input::placeholder{color:var(--text-faint); font-weight:600;}
+  .token-row{display:flex; align-items:center; gap:8px; margin-top:10px;}
+  .token-input{
+    flex:1; background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    padding:10px 12px; color:var(--text-dim); font-size:13px; outline:none; font-family:inherit;
+  }
+  .token-input:focus{border-color:var(--border-strong); color:var(--text);}
+  .token-input::placeholder{color:var(--text-faint);}
+
+  /* ---------- Tab bar ---------- */
+  .tabbar{
+    position:relative; display:grid; grid-template-columns:repeat(3,1fr);
+    background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:4px;
+    margin-bottom:18px; backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+  }
+  /* Pill position/width are set from JS by measuring the active button's real box,
+     so it always lines up exactly under the tab — no drift from calc() approximations. */
+  .tab-pill{
+    position:absolute; top:4px; left:4px; bottom:4px; width:0;
+    background:linear-gradient(135deg, var(--accent), #ff7f7f);
+    border-radius:12px; transition:left .32s cubic-bezier(.65,0,.35,1), width .32s cubic-bezier(.65,0,.35,1);
+    box-shadow:0 8px 18px -6px rgba(255,120,90,0.5);
+  }
+  .tab-btn{
+    position:relative; z-index:1; border:none; background:transparent; padding:10px 4px;
+    font-size:13px; font-weight:600; color:var(--text-faint); border-radius:12px; cursor:pointer;
+    transition:color .25s ease; font-family:inherit; display:flex; align-items:center; justify-content:center; gap:6px;
+  }
+  .tab-btn.active{color:var(--accent-ink);}
+  .tab-btn svg{width:15px; height:15px; flex:none;}
+
+  /* ---------- Cards ---------- */
+  @keyframes cardIn{ from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);} }
+  .card{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg);
+    padding:16px; margin-bottom:12px; backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+    box-shadow:var(--shadow-lift); animation:cardIn .34s ease both;
+    transition:border-color .2s ease, transform .2s ease;
+  }
+  .card:nth-of-type(1){animation-delay:0s;}
+  .card:nth-of-type(2){animation-delay:.05s;}
+  .card:nth-of-type(3){animation-delay:.1s;}
+  .card:nth-of-type(4){animation-delay:.15s;}
+  .card:nth-of-type(5){animation-delay:.2s;}
+  .card:nth-of-type(n+6){animation-delay:.24s;}
+  .card:active{transform:scale(0.995);}
+  .card-head{display:flex; align-items:flex-start; gap:12px;}
+  .card-icon{
+    width:40px; height:40px; flex:none; border-radius:13px; display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(150deg, rgba(255,154,102,0.28), rgba(255,111,145,0.16));
+    border:1px solid rgba(255,255,255,0.12); color:var(--accent);
+  }
+  .card-icon svg{width:19px; height:19px;}
+  .card-title-wrap{flex:1; min-width:0;}
+  .card-title{font-size:15px; font-weight:650; letter-spacing:-0.005em;}
+  .card-sub{font-size:12.5px; color:var(--text-faint); margin-top:2px; word-break:break-word;}
+  .card-actions{display:flex; gap:6px; flex:none;}
+  .icon-btn{
+    width:30px; height:30px; border-radius:10px; border:1px solid var(--border); background:var(--surface-2);
+    display:flex; align-items:center; justify-content:center; color:var(--text-dim); cursor:pointer;
+  }
+  .icon-btn svg{width:14px; height:14px;}
+  .icon-btn.danger{color:var(--danger);}
+  .icon-btn:active{transform:scale(0.94);}
+
+  /* ---------- Chips (actions / kb buttons) ---------- */
+  .chip-list{display:flex; flex-wrap:wrap; gap:8px; margin-top:14px;}
+  .chip{
+    display:flex; align-items:center; gap:8px; background:var(--surface-2); border:1px solid var(--border);
+    border-radius:12px; padding:8px 8px 8px 10px; font-size:12.5px; color:var(--text-dim); max-width:100%;
+  }
+  .chip .chip-icon{color:var(--accent-2); flex:none; display:flex;}
+  .chip .chip-icon svg{width:13px; height:13px;}
+  .chip-text{font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:150px;}
+  .chip-x{
+    width:18px; height:18px; border-radius:6px; border:none; background:rgba(255,255,255,0.08); color:var(--text-faint);
+    display:flex; align-items:center; justify-content:center; cursor:pointer; flex:none;
+  }
+  .chip-x svg{width:9px; height:9px;}
+  .chip-add{
+    display:flex; align-items:center; gap:6px; background:transparent; border:1.5px dashed var(--border-strong);
+    border-radius:12px; padding:8px 13px; font-size:12.5px; font-weight:650; color:var(--accent);
+    cursor:pointer; font-family:inherit;
+  }
+  .chip-add svg{width:12px; height:12px;}
+
+  /* ---------- Keyboard rows ---------- */
+  .kb-type-badge{
+    display:inline-flex; align-items:center; gap:5px; font-size:10.5px; font-weight:700; letter-spacing:.04em;
+    text-transform:uppercase; color:var(--accent-2); background:rgba(111,216,200,0.13); border:1px solid rgba(111,216,200,0.25);
+    padding:3px 8px; border-radius:8px; margin-top:4px;
+  }
+  .kb-name-input{
+    background:transparent; border:none; outline:none; color:var(--text); font-size:15px; font-weight:650;
+    padding:0; width:100%; font-family:inherit;
+  }
+  .kb-row{margin-top:10px; padding-top:10px; border-top:1px dashed var(--border);}
+  .kb-row:first-of-type{border-top:none; margin-top:14px; padding-top:0;}
+  /* Row header (label + delete) is its own flex line, so the delete button never
+     jumps around when the buttons below it wrap onto multiple lines. */
+  .kb-row-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:9px;}
+  .kb-row-label{font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--text-faint);}
+  .kb-row-buttons{display:flex; flex-wrap:wrap; align-items:center; gap:7px;}
+  .kb-btn-chip{
+    display:flex; align-items:center; gap:7px; background:var(--surface-2); border:1px solid var(--border);
+    border-radius:11px; padding:7px 8px 7px 11px; font-size:12.5px; cursor:pointer; max-width:180px;
+  }
+  .kb-btn-chip span{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:600;}
+  .row-del{
+    width:26px; height:26px; border-radius:9px; border:1px solid var(--border); background:transparent;
+    color:var(--text-faint); display:flex; align-items:center; justify-content:center; cursor:pointer; flex:none;
+  }
+  .row-del svg{width:11px; height:11px;}
+  .ghost-btn{
+    width:100%; margin-top:14px; padding:11px; border-radius:12px; border:1.5px dashed var(--border-strong);
+    background:transparent; color:var(--text-dim); font-weight:650; font-size:13px; cursor:pointer; font-family:inherit;
+    display:flex; align-items:center; justify-content:center; gap:7px;
+  }
+  .ghost-btn svg{width:13px; height:13px;}
+
+  /* ---------- Empty state ---------- */
+  .empty-state{
+    display:flex; flex-direction:column; align-items:center; text-align:center; padding:52px 22px;
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); backdrop-filter:blur(16px);
+  }
+  .empty-icon{
+    width:66px; height:66px; border-radius:20px; display:flex; align-items:center; justify-content:center; margin-bottom:18px;
+    background:linear-gradient(150deg, rgba(255,154,102,0.22), rgba(111,216,200,0.14)); border:1px solid var(--border);
+    color:var(--accent);
+  }
+  .empty-icon svg{width:28px; height:28px;}
+  .empty-title{font-size:16px; font-weight:650; margin-bottom:6px;}
+  .empty-sub{font-size:13px; color:var(--text-faint); line-height:1.5; max-width:280px; margin-bottom:20px;}
+
+  /* ---------- Buttons ---------- */
+  .btn{
+    border:none; border-radius:14px; padding:13px 20px; font-size:14.5px; font-weight:650; cursor:pointer;
+    font-family:inherit; display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .btn svg{width:14px; height:14px;}
+  .btn-primary{position:relative; overflow:hidden; background:linear-gradient(135deg, var(--accent), #ff7f7f); color:var(--accent-ink); box-shadow:0 10px 24px -10px rgba(255,120,90,0.55);}
+  .btn-primary:active{transform:scale(0.98);}
+  .btn-primary::after{content:''; position:absolute; top:0; left:-60%; width:35%; height:100%; background:linear-gradient(120deg, transparent, rgba(255,255,255,0.45), transparent); transform:skewX(-18deg); animation:btn-shimmer 5s ease-in-out infinite;}
+  @keyframes btn-shimmer{0%{left:-60%;} 35%{left:130%;} 100%{left:130%;}}
+  .btn-block{width:100%;}
+  .btn-secondary{background:var(--surface-2); color:var(--text); border:1px solid var(--border);}
+
+  /* ---------- Type grid (picker) ---------- */
+  .type-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .type-opt{
+    display:flex; flex-direction:column; align-items:flex-start; gap:10px; background:var(--surface-2);
+    border:1px solid var(--border); border-radius:14px; padding:13px; cursor:pointer; text-align:left; font-family:inherit;
+  }
+  .type-opt:active{transform:scale(0.97);}
+  .type-opt .t-icon{
+    width:32px; height:32px; border-radius:10px; display:flex; align-items:center; justify-content:center;
+    background:rgba(255,154,102,0.16); color:var(--accent);
+  }
+  .type-opt .t-icon svg{width:15px; height:15px;}
+  .type-opt .t-label{font-size:12.5px; font-weight:650; color:var(--text); line-height:1.25;}
+
+  /* ---------- Form fields ---------- */
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:12.5px; font-weight:650; color:var(--text-dim); margin-bottom:7px;}
+  .field input[type=text], .field input[type=number], .field textarea, .field select{
+    width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:12px;
+    padding:12px 13px; color:var(--text); font-size:14px; outline:none; font-family:inherit; resize:vertical;
+  }
+  .field input:focus, .field textarea:focus, .field select:focus{border-color:var(--accent);}
+  .field input::placeholder, .field textarea::placeholder{color:var(--text-faint);}
+  .field textarea{min-height:78px; line-height:1.4;}
+  .field select{appearance:none; -webkit-appearance:none; background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%238d7c8a" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg>'); background-repeat:no-repeat; background-position:right 12px center; background-size:14px;}
+  .field-hint{font-size:11.5px; color:var(--text-faint); margin-top:6px; line-height:1.4;}
+  .dropzone{
+    display:flex; align-items:center; gap:12px; background:var(--surface-2); border:1.5px dashed var(--border-strong);
+    border-radius:14px; padding:13px; cursor:pointer; transition:border-color .18s ease, background .18s ease;
+  }
+  .dropzone.drag{border-color:var(--accent); background:rgba(255,154,102,0.12);}
+  .dz-file-icon{
+    width:42px; height:42px; flex:none; border-radius:12px; display:flex; align-items:center; justify-content:center;
+    background:rgba(255,154,102,0.16); color:var(--accent);
+  }
+  .dz-file-icon svg{width:18px; height:18px;}
+  .dz-thumb{width:42px; height:42px; flex:none; border-radius:12px; object-fit:cover; border:1px solid var(--border);}
+  .dz-file-info{flex:1; min-width:0;}
+  .dz-file-name{font-size:13px; font-weight:650; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .dz-file-hint{font-size:11.5px; color:var(--text-faint); margin-top:2px;}
+  .dz-remove{
+    width:28px; height:28px; flex:none; border-radius:9px; border:1px solid var(--border); background:var(--surface-3);
+    color:var(--text-dim); display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .dz-remove svg{width:12px; height:12px;}
+  .prefix-field{display:flex; align-items:center; background:var(--surface-2); border:1px solid var(--border); border-radius:12px; overflow:hidden;}
+  .prefix-field span{padding:12px 0 12px 13px; color:var(--text-faint); font-weight:650;}
+  .prefix-field input{border:none !important; background:transparent !important; padding-left:2px !important;}
+  .segmented{display:flex; gap:8px;}
+  .segmented button{
+    flex:1; padding:11px; border-radius:12px; border:1px solid var(--border); background:var(--surface-2);
+    color:var(--text-dim); font-weight:650; font-size:12.5px; cursor:pointer; font-family:inherit;
+  }
+  .segmented button.active{background:linear-gradient(135deg, var(--accent), #ff7f7f); color:var(--accent-ink); border-color:transparent;}
+  .note-box{background:rgba(255,154,102,0.09); border:1px solid rgba(255,154,102,0.22); border-radius:12px; padding:12px 13px; font-size:12.5px; color:var(--text-dim); line-height:1.5;}
+
+  /* ---------- Modal ---------- */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(12,7,15,0.62); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px);
+    display:flex; align-items:flex-end; justify-content:center; z-index:100; opacity:1; transition:opacity .2s ease;
+  }
+  .modal-overlay.hidden{opacity:0; pointer-events:none;}
+  .modal-panel{
+    width:100%; max-width:560px; max-height:86vh; background:linear-gradient(180deg, #2a1c33, #1e1425);
+    border:1px solid var(--border-strong); border-bottom:none; border-radius:26px 26px 0 0; display:flex; flex-direction:column;
+    transform:translateY(0); transition:transform .28s cubic-bezier(.32,.72,0,1); box-shadow:0 -20px 60px -20px rgba(0,0,0,0.6);
+  }
+  .modal-overlay.hidden .modal-panel{transform:translateY(24px);}
+  .modal-header{display:flex; align-items:center; justify-content:space-between; padding:18px 18px 12px; flex:none;}
+  .modal-header h3{margin:0; font-size:16px; font-weight:700; letter-spacing:-0.005em;}
+  .modal-close{
+    width:30px; height:30px; border-radius:10px; border:1px solid var(--border); background:var(--surface-2);
+    color:var(--text-dim); display:flex; align-items:center; justify-content:center; cursor:pointer; flex:none;
+  }
+  .modal-close svg{width:13px; height:13px;}
+  .modal-body{padding:6px 18px 18px; overflow-y:auto; -webkit-overflow-scrolling:touch;}
+  .modal-footer{padding:14px 18px 22px; flex:none; border-top:1px solid var(--border);}
+
+  /* ---------- Payment tab ---------- */
+  .summary-row{display:flex; align-items:center; justify-content:space-between; padding:11px 0; border-bottom:1px solid var(--border); font-size:13.5px;}
+  .summary-row:last-child{border-bottom:none;}
+  .summary-row .s-label{color:var(--text-faint);}
+  .summary-row .s-val{font-weight:650;}
+  .tariff-card{
+    display:flex; align-items:center; gap:13px; background:var(--surface); border:1.5px solid var(--border);
+    border-radius:16px; padding:14px; margin-bottom:10px; cursor:pointer; transition:border-color .2s ease;
+  }
+  .tariff-card.selected{border-color:var(--accent); background:rgba(255,154,102,0.09);}
+  .tariff-card.disabled{opacity:0.45; cursor:not-allowed;}
+  .tariff-radio{
+    width:20px; height:20px; border-radius:50%; border:2px solid var(--border-strong); flex:none;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .tariff-radio .dot{width:10px; height:10px; border-radius:50%; background:var(--accent); opacity:0; transition:opacity .15s ease;}
+  .tariff-card.selected .tariff-radio{border-color:var(--accent);}
+  .tariff-card.selected .tariff-radio .dot{opacity:1;}
+  .tariff-body{flex:1;}
+  .tariff-title{font-size:14px; font-weight:650;}
+  .tariff-sub{font-size:12px; color:var(--text-faint); margin-top:2px;}
+  .tariff-price{font-size:14px; font-weight:700; color:var(--accent);}
+  .sticky-cta{position:sticky; bottom:14px; margin-top:18px;}
+
+  .section-label{font-size:12px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--text-faint); margin:20px 4px 10px;}
+  .section-label:first-child{margin-top:0;}
+
+  .toast{
+    position:fixed; left:50%; bottom:26px; transform:translateX(-50%) translateY(10px); z-index:200;
+    background:#241a2c; border:1px solid var(--border-strong); color:var(--text); padding:12px 18px; border-radius:14px;
+    font-size:13px; font-weight:600; box-shadow:0 14px 30px -10px rgba(0,0,0,0.5); opacity:0; transition:all .25s ease; max-width:86%; text-align:center;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+  .toast.error{border-color:rgba(255,122,122,0.4); background:#2c1a1a;}
+
+  .spinner{width:15px; height:15px; border-radius:50%; border:2px solid rgba(42,21,9,0.35); border-top-color:var(--accent-ink); animation:spin .7s linear infinite;}
+  .spinner.on-dark{border-color:rgba(255,255,255,0.18); border-top-color:var(--accent);}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  @keyframes shake{
+    10%,90%{transform:translateX(-1px);} 20%,80%{transform:translateX(2px);}
+    30%,50%,70%{transform:translateX(-4px);} 40%,60%{transform:translateX(4px);}
+  }
+  .input-error{border-color:var(--danger) !important; animation:shake .4s ease;}
+  .field-required-hint{font-size:11.5px; color:var(--text-faint); margin-top:7px; line-height:1.4;}
+</style>
+</head>
+<body>
+  <div class="bg-fx" aria-hidden="true" id="bg-fx">
+    <span class="blob blob-a"></span>
+    <span class="blob blob-b"></span>
+    <span class="blob blob-c"></span>
+    <span class="blob blob-d"></span>
+  </div>
+  <div class="grain" aria-hidden="true"></div>
+
+  <div id="app">
+    <header class="topbar">
+      <div class="eyebrow"><span class="live-dot"></span>Конструктор ботов</div>
+      <input id="bot-name-input" class="name-input" type="text" placeholder="Название бота" oninput="state.botName=this.value; syncSummary(); persist();">
+      <div class="token-row">
+        <input id="bot-token-input" class="token-input" type="text" placeholder="Токен от @BotFather" oninput="state.botToken=this.value; clearFieldError('bot-token-input'); syncSummary(); persist();">
+      </div>
+      <div class="field-required-hint">Токен <span class="token-required">обязателен</span> — получите его у @BotFather в Telegram и вставьте сюда</div>
+    </header>
+
+    <nav class="tabbar" id="tabbar">
+      <div class="tab-pill" id="tab-pill"></div>
+      <button class="tab-btn" data-tab="scenario" onclick="setTab('scenario')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3L4 14h6l-1 7 9-11h-6l1-7z"/></svg>
+        Сценарий
+      </button>
+      <button class="tab-btn" data-tab="buttons" onclick="setTab('buttons')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="8" height="5" rx="1.5"/><rect x="13" y="7" width="8" height="5" rx="1.5"/><rect x="3" y="14" width="18" height="5" rx="1.5"/></svg>
+        Кнопки
+      </button>
+      <button class="tab-btn" data-tab="payment" onclick="setTab('payment')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5.5" width="19" height="13" rx="2.5"/><path d="M2.5 10h19"/></svg>
+        Оплата
+      </button>
+    </nav>
+
+    <main id="tab-content"></main>
+  </div>
+
+  <div id="modal-overlay" class="modal-overlay hidden" onclick="if(event.target===this)closeModal();">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3 id="modal-title"></h3>
+        <button class="modal-close" onclick="closeModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+      <div class="modal-footer" id="modal-footer"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+<script>
+/* ============================================================
+   STATE
+   ============================================================ */
+var state = {
+  botName: '',
+  botToken: '',
+  triggers: [],
+  keyboards: [],
+  tariff: 'stars'
+};
+var activeTab = 'scenario';
+var STORAGE_KEY = 'bot_builder_config_v1';
+
+function uid(){ return 'id_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8); }
+
+function persist(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){
+    /* Most likely quota exceeded because a big base64 file is embedded in state.
+       Not fatal for the current session, so we just skip saving silently. */
+  }
+}
+function restore(){
+  try{
+    var raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      var parsed = JSON.parse(raw);
+      if(parsed && typeof parsed === 'object'){
+        state.botName = parsed.botName || '';
+        state.botToken = parsed.botToken || '';
+        state.triggers = Array.isArray(parsed.triggers) ? parsed.triggers : [];
+        state.keyboards = Array.isArray(parsed.keyboards) ? parsed.keyboards : [];
+        state.tariff = parsed.tariff || 'stars';
+      }
+    }
+  }catch(e){}
+}
+
+/* ============================================================
+   ICONS
+   ============================================================ */
+var ICONS = {
+  slash: '<path d="M8 5l4 14"/>',
+  quote: '<path d="M7 8c-2 0-3 1.4-3 3.4 0 1.7 1.1 2.9 2.7 2.9.2 2-1 3.2-2.7 3.7M15 8c-2 0-3 1.4-3 3.4 0 1.7 1.1 2.9 2.7 2.9.2 2-1 3.2-2.7 3.7"/>',
+  search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.8-4.8"/>',
+  cursor: '<path d="M5 3l6 17 2.3-6.7L20 11 5 3z"/>',
+  image: '<rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.7"/><path d="M21 16l-5.5-5.5L4 21"/>',
+  video: '<rect x="3" y="6" width="12" height="12" rx="2"/><path d="M15 10l6-3.5v11L15 14"/>',
+  mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/>',
+  file: '<path d="M7 3h7l5 5v13a1 1 0 01-1 1H7a1 1 0 01-1-1V4a1 1 0 011-1z"/><path d="M14 3v5h5"/>',
+  pin: '<path d="M12 21s7-6.4 7-11.5A7 7 0 105 9.5C5 14.6 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.4"/>',
+  contact: '<circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c0-3.6 3.1-6.5 7-6.5s7 2.9 7 6.5"/>',
+  users: '<circle cx="9" cy="8" r="3.2"/><path d="M2.5 19c.5-3.4 3.2-5.8 6.5-5.8s6 2.4 6.5 5.8"/><path d="M15.5 5.2a3.2 3.2 0 010 6.1M21 19c-.4-2.6-1.9-4.6-4-5.5"/>',
+  bolt: '<path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"/>',
+  message: '<path d="M4 5h16v11H8l-4 4V5z"/>',
+  sticker: '<path d="M4 4h11l5 5v11a1 1 0 01-1 1H4a1 1 0 01-1-1V5a1 1 0 011-1z"/><path d="M15 4v5h5"/><circle cx="9" cy="13.5" r="1"/><circle cx="13.5" cy="13.5" r="1"/><path d="M8.5 16.5c.9.8 2.6.8 3.5 0"/>',
+  edit: '<path d="M4 20l1-4.2L15.6 5.2a1.7 1.7 0 012.4 0l.8.8a1.7 1.7 0 010 2.4L8.2 19 4 20z"/>',
+  clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  dots: '<circle cx="6.5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="17.5" cy="12" r="1.4"/>',
+  trash: '<path d="M5 7h14M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m-9 0l1 13a1 1 0 001 1h8a1 1 0 001-1l1-13"/>',
+  star: '<path d="M12 2.5l3 6.3 6.7.9-4.9 4.7 1.2 6.8L12 17.9l-6 3.3 1.2-6.8L2.3 9.7 9 8.8z"/>',
+  keyboardoff: '<rect x="3" y="6" width="18" height="12" rx="2.5"/><path d="M4 4l16 16"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  chevron: '<path d="M9 6l6 6-6 6"/>',
+  wand: '<path d="M4 20L18 6M14 4l1.2 2.8L18 8l-2.8 1.2L14 12l-1.2-2.8L10 8l2.8-1.2z"/><path d="M18 15l.8 1.7L20.5 17.5l-1.7.8L18 20l-.8-1.7-1.7-.8 1.7-.8z"/>',
+  keys: '<rect x="2.5" y="7" width="19" height="11" rx="2.5"/><path d="M6.5 11h.01M10 11h.01M13.5 11h.01M17 11h.01M8 14.5h8"/>',
+  card: '<rect x="2.5" y="5.5" width="19" height="13" rx="2.5"/><path d="M2.5 10h19"/>',
+  link: '<path d="M9 15l6-6"/><path d="M8 6.5l1-.9a3.6 3.6 0 015 5.2l-1.5 1.5"/><path d="M16 17.5l-1 .9a3.6 3.6 0 01-5-5.2l1.5-1.5"/>',
+  check: '<path d="M5 13l4.5 4.5L19 7"/>',
+  lock: '<rect x="5" y="10.5" width="14" height="9" rx="2.2"/><path d="M8 10.5V8a4 4 0 018 0v2.5"/>',
+  close: '<path d="M6 6l12 12M18 6L6 18"/>',
+  upload: '<path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3"/>'
+};
+function icon(name, cls){
+  return '<svg class="'+(cls||'')+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+(ICONS[name]||ICONS.dots)+'</svg>';
+}
+
+/* ============================================================
+   DEFINITIONS: triggers / actions / keyboard buttons
+   ============================================================ */
+var TRIGGER_DEFS = {
+  command:            { label:'Команда',                 icon:'slash',   fields:[{key:'value', label:'Введите команду', placeholder:'start', type:'command'}] },
+  text_equals:         { label:'Точный текст',             icon:'quote',   fields:[{key:'value', label:'Текст сообщения целиком', placeholder:'Привет', type:'text'}] },
+  text_contains:       { label:'Текст содержит',           icon:'search',  fields:[{key:'value', label:'Какую часть текста искать', placeholder:'акция', type:'text'}] },
+  callback:            { label:'Нажатие кнопки',           icon:'cursor',  fields:[{key:'value', label:'Какую кнопку отслеживать', type:'callback_select'}] },
+  photo_received:      { label:'Получено фото',            icon:'image',   fields:[] },
+  video_received:      { label:'Получено видео',           icon:'video',   fields:[] },
+  voice_received:      { label:'Получено голосовое',       icon:'mic',     fields:[] },
+  document_received:   { label:'Получен документ',         icon:'file',    fields:[] },
+  location_received:   { label:'Получена геолокация',      icon:'pin',     fields:[] },
+  contact_received:    { label:'Получен контакт',          icon:'contact', fields:[] },
+  new_chat_member:     { label:'Новый участник в группе',  icon:'users',   fields:[] },
+  any_message:         { label:'Любое сообщение',          icon:'bolt',    fields:[] }
+};
+var TRIGGER_ORDER = ['command','text_equals','text_contains','callback','photo_received','video_received','voice_received','document_received','location_received','contact_received','new_chat_member','any_message'];
+
+var ACTION_DEFS = {
+  send_message:    { label:'Отправить сообщение',           icon:'message',     fields:[{key:'text', label:'Текст сообщения', type:'textarea', placeholder:'Введите текст, который отправит бот'}] },
+  send_photo:      { label:'Отправить фото',                icon:'image',       fields:[{key:'url', label:'Фото', type:'media', kind:'image', accept:'image/*', limitMB:5},{key:'caption', label:'Подпись (необязательно)', type:'textarea'}] },
+  send_video:      { label:'Отправить видео',                icon:'video',       fields:[{key:'url', label:'Видео', type:'media', kind:'video', accept:'video/*', limitMB:20},{key:'caption', label:'Подпись (необязательно)', type:'textarea'}] },
+  send_document:   { label:'Отправить документ',             icon:'file',        fields:[{key:'url', label:'Документ', type:'media', kind:'document', accept:'*/*', limitMB:20},{key:'caption', label:'Подпись (необязательно)', type:'textarea'}] },
+  send_voice:      { label:'Отправить голосовое',            icon:'mic',         fields:[{key:'url', label:'Голосовое сообщение', type:'media', kind:'audio', accept:'audio/*', limitMB:10}] },
+  send_sticker:    { label:'Отправить стикер',               icon:'sticker',     fields:[{key:'url', label:'Стикер', type:'media', kind:'image', accept:'image/*', limitMB:2}] },
+  request_contact: { label:'Запросить контакт',              icon:'contact',     fields:[{key:'text', label:'Текст запроса', type:'textarea', placeholder:'Поделитесь, пожалуйста, контактом'}] },
+  request_location:{ label:'Запросить геолокацию',           icon:'pin',         fields:[{key:'text', label:'Текст запроса', type:'textarea', placeholder:'Поделитесь, пожалуйста, геолокацией'}] },
+  ask_and_save:    { label:'Задать вопрос и сохранить ответ',icon:'edit',        fields:[{key:'text', label:'Текст вопроса', type:'textarea', placeholder:'Как вас зовут?'},{key:'varname', label:'Название переменной для ответа', type:'text', placeholder:'user_name'}] },
+  pause:           { label:'Пауза',                          icon:'clock',       fields:[{key:'seconds', label:'Сколько секунд ждать', type:'number', placeholder:'2'}] },
+  typing:          { label:'Показать «печатает…»',            icon:'dots',        fields:[] },
+  delete_message:  { label:'Удалить сообщение пользователя', icon:'trash',       fields:[] },
+  send_invoice:    { label:'Выставить счёт в Stars',         icon:'star',        fields:[{key:'title', label:'Заголовок счёта', type:'text', placeholder:'Доступ к материалам'},{key:'description', label:'Описание', type:'textarea', placeholder:'Что получит пользователь'},{key:'price', label:'Цена, Stars', type:'number', placeholder:'50'}] },
+  remove_keyboard: { label:'Скрыть клавиатуру',              icon:'keyboardoff', fields:[] }
+};
+var ACTION_ORDER = ['send_message','send_photo','send_video','send_document','send_voice','send_sticker','request_contact','request_location','ask_and_save','pause','typing','delete_message','send_invoice','remove_keyboard'];
+
+var INLINE_BTN_TYPES = { bot_action:'Действие в боте', url:'Открыть ссылку', stars_payment:'Оплата Stars' };
+var REPLY_BTN_TYPES  = { plain:'Обычная кнопка', request_contact:'Запросить контакт', request_location:'Запросить геолокацию' };
+
+/* ============================================================
+   MODAL ENGINE
+   ============================================================ */
+var draft = null;       // working copy of the entity being created/edited
+var draftCtx = null;    // { kind, ...ids }
+
+function openModal(title, bodyHtml, footerHtml){
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = bodyHtml;
+  document.getElementById('modal-footer').innerHTML = footerHtml || '';
+  document.getElementById('modal-overlay').classList.remove('hidden');
+}
+function closeModal(){
+  document.getElementById('modal-overlay').classList.add('hidden');
+  draft = null; draftCtx = null; currentModalRerender = null;
+}
+function saveBtn(label, disabled){
+  return '<button class="btn btn-primary btn-block" '+(disabled?'disabled style="opacity:.5"':'')+' onclick="commitDraft()">'+icon('check')+label+'</button>';
+}
+
+/* ---- generic field renderer ---- */
+function renderFieldsHtml(fields, params){
+  var html = '';
+  fields.forEach(function(f){
+    html += '<div class="field">';
+    html += '<label>'+f.label+'</label>';
+    var val = (params[f.key] !== undefined && params[f.key] !== null) ? params[f.key] : '';
+    if(f.type === 'textarea'){
+      html += '<textarea oninput="draft.params[\''+f.key+'\']=this.value" placeholder="'+(f.placeholder||'')+'">'+escapeHtml(val)+'</textarea>';
+    } else if(f.type === 'number'){
+      html += '<input type="number" value="'+escapeHtml(val)+'" placeholder="'+(f.placeholder||'')+'" oninput="draft.params[\''+f.key+'\']=this.value">';
+    } else if(f.type === 'command'){
+      html += '<div class="prefix-field"><span>/</span><input type="text" value="'+escapeHtml(val)+'" placeholder="'+(f.placeholder||'')+'" oninput="draft.params[\''+f.key+'\']=this.value.replace(/^\\//,\'\')"></div>';
+    } else if(f.type === 'callback_select'){
+      html += renderCallbackSelect(val);
+    } else if(f.type === 'media'){
+      html += renderMediaField(f, params);
+    } else {
+      html += '<input type="text" value="'+escapeHtml(val)+'" placeholder="'+(f.placeholder||'')+'" oninput="draft.params[\''+f.key+'\']=this.value">';
+    }
+    html += '</div>';
+  });
+  return html;
+}
+function renderCallbackSelect(selectedVal){
+  var opts = [];
+  state.keyboards.forEach(function(kb){
+    if(kb.type !== 'inline') return;
+    kb.rows.forEach(function(row){
+      row.forEach(function(btn){
+        if(btn.type === 'bot_action' && btn.value){
+          opts.push({ value: btn.value, label: btn.text + ' («' + kb.name + '»)' });
+        }
+      });
+    });
+  });
+  if(opts.length === 0){
+    return '<div class="note-box">Пока нет инлайн-кнопок с действием в боте. Сначала создайте такую кнопку во вкладке «Кнопки», затем вернитесь сюда.</div>';
+  }
+  var html = '<select oninput="draft.params.value=this.value">';
+  html += '<option value="">Выберите кнопку</option>';
+  opts.forEach(function(o){
+    html += '<option value="'+escapeHtml(o.value)+'" '+(o.value===selectedVal?'selected':'')+'>'+escapeHtml(o.label)+'</option>';
+  });
+  html += '</select>';
+  return html;
+}
+/* ---- media upload field (drag & drop / browse) ----
+   Upload flow: try POST /api/upload_media first so only a small URL/file_id
+   ends up in the saved config (this is what should actually be sent to
+   Telegram's sendPhoto/sendVideo). If that endpoint isn't available yet,
+   fall back to embedding the file as base64 — fine for quick testing with
+   small files, but large videos may fail to submit or fail to send from
+   the bot, since Telegram's API needs a real URL or an uploaded file, not
+   a data: URI, and big base64 blobs can also exceed the server's request
+   size limit. */
+var currentModalRerender = null;
+var UPLOAD_ENDPOINT = '/api/upload_media';
+
+function formatBytes(bytes){
+  if(bytes < 1024) return bytes + ' Б';
+  if(bytes < 1024*1024) return Math.round(bytes/1024) + ' КБ';
+  return (bytes/(1024*1024)).toFixed(1) + ' МБ';
+}
+function mediaKindIcon(kind){
+  if(kind === 'image') return 'image';
+  if(kind === 'video') return 'video';
+  if(kind === 'audio') return 'mic';
+  return 'file';
+}
+function renderMediaField(f, params){
+  var dataUrl = params[f.key] || '';
+  var fileName = params[f.key+'_name'] || '';
+  var uploading = !!params[f.key+'_uploading'];
+  var html = '<div class="dropzone" id="dz-'+f.key+'" ondragover="dzDragOver(event,\''+f.key+'\')" ondragleave="dzDragLeave(event,\''+f.key+'\')" ondrop="dzDrop(event,\''+f.key+'\',\''+f.kind+'\','+f.limitMB+')" onclick="'+(uploading?'':'dzBrowse(\''+f.key+'\')')+'">';
+  if(uploading){
+    html += '<div class="dz-file-icon"><div class="spinner on-dark"></div></div>';
+    html += '<div class="dz-file-info"><div class="dz-file-name">'+escapeHtml(fileName || 'Загрузка…')+'</div><div class="dz-file-hint">Загружаем файл…</div></div>';
+  } else if(dataUrl){
+    if(f.kind === 'image'){
+      html += '<img class="dz-thumb" src="'+dataUrl+'" alt="">';
+    } else {
+      html += '<div class="dz-file-icon">'+icon(mediaKindIcon(f.kind))+'</div>';
+    }
+    html += '<div class="dz-file-info"><div class="dz-file-name">'+escapeHtml(fileName || 'Файл загружен')+'</div><div class="dz-file-hint">Нажмите, чтобы заменить</div></div>';
+    html += '<button type="button" class="dz-remove" onclick="event.stopPropagation(); dzClear(\''+f.key+'\')">'+icon('close')+'</button>';
+  } else {
+    html += '<div class="dz-file-icon">'+icon('upload')+'</div>';
+    html += '<div class="dz-file-info"><div class="dz-file-name">Перетащите файл сюда или нажмите, чтобы загрузить</div><div class="dz-file-hint">До '+f.limitMB+' МБ</div></div>';
+  }
+  html += '</div>';
+  html += '<input type="file" id="file-'+f.key+'" accept="'+(f.accept||'*/*')+'" style="display:none" onchange="dzFileSelected(event,\''+f.key+'\',\''+f.kind+'\','+f.limitMB+')">';
+  return html;
+}
+function dzBrowse(key){
+  var input = document.getElementById('file-'+key);
+  if(input) input.click();
+}
+function dzDragOver(e, key){
+  e.preventDefault(); e.stopPropagation();
+  var zone = document.getElementById('dz-'+key);
+  if(zone) zone.classList.add('drag');
+}
+function dzDragLeave(e, key){
+  e.preventDefault(); e.stopPropagation();
+  var zone = document.getElementById('dz-'+key);
+  if(zone) zone.classList.remove('drag');
+}
+function dzDrop(e, key, kind, limitMB){
+  e.preventDefault(); e.stopPropagation();
+  var zone = document.getElementById('dz-'+key);
+  if(zone) zone.classList.remove('drag');
+  var file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if(file) handleMediaFile(file, key, kind, limitMB);
+}
+function dzFileSelected(e, key, kind, limitMB){
+  var file = e.target.files && e.target.files[0];
+  if(file) handleMediaFile(file, key, kind, limitMB);
+  e.target.value = '';
+}
+function dzClear(key){
+  if(!draft) return;
+  draft.params[key] = '';
+  draft.params[key+'_name'] = '';
+  draft.params[key+'_uploading'] = false;
+  if(typeof currentModalRerender === 'function') currentModalRerender();
+}
+function handleMediaFile(file, key, kind, limitMB){
+  if(!draft) return;
+  if(file.size > limitMB*1024*1024){
+    showToast('Файл слишком большой. Максимум '+limitMB+' МБ', true);
+    return;
+  }
+  draft.params[key+'_name'] = file.name;
+  draft.params[key+'_size'] = file.size;
+  draft.params[key+'_uploading'] = true;
+  if(typeof currentModalRerender === 'function') currentModalRerender();
+
+  var fd = new FormData();
+  fd.append('file', file);
+  fd.append('kind', kind);
+
+  fetch(UPLOAD_ENDPOINT, { method:'POST', body: fd })
+    .then(function(res){ if(!res.ok) throw new Error('upload_failed'); return res.json(); })
+    .then(function(data){
+      if(!draft || !data || !data.url) throw new Error('bad_response');
+      draft.params[key] = data.url;
+      draft.params[key+'_uploading'] = false;
+      if(typeof currentModalRerender === 'function') currentModalRerender();
+      showToast('Файл «'+file.name+'» загружен ('+formatBytes(file.size)+')');
+    })
+    .catch(function(){
+      // Сервер загрузки недоступен — временно встраиваем файл как base64.
+      // Подходит только для небольших файлов; для реальной отправки в Telegram
+      // нужен рабочий /api/upload_media, возвращающий прямую ссылку на файл.
+      var reader = new FileReader();
+      reader.onload = function(){
+        if(!draft) return;
+        draft.params[key] = reader.result;
+        draft.params[key+'_uploading'] = false;
+        if(typeof currentModalRerender === 'function') currentModalRerender();
+        showToast('Файл «'+file.name+'» встроен напрямую (нет сервера загрузки)');
+      };
+      reader.onerror = function(){
+        if(!draft) return;
+        draft.params[key+'_uploading'] = false;
+        showToast('Не удалось загрузить файл', true);
+        if(typeof currentModalRerender === 'function') currentModalRerender();
+      };
+      reader.readAsDataURL(file);
+    });
+}
+function renderKeyboardAttach(selectedId){
+  var html = '<div class="field"><label>Прикрепить клавиатуру</label><select oninput="draft.keyboardId=this.value">';
+  html += '<option value="">Без клавиатуры</option>';
+  state.keyboards.forEach(function(kb){
+    html += '<option value="'+kb.id+'" '+(kb.id===selectedId?'selected':'')+'>'+escapeHtml(kb.name)+' ('+(kb.type==='inline'?'инлайн':'обычная')+')</option>';
+  });
+  html += '</select></div>';
+  return html;
+}
+function escapeHtml(str){
+  return String(str==null?'':str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ---- type grid renderer (used for trigger / action pickers) ---- */
+function renderTypeGrid(order, defs, onSelectFn){
+  var html = '<div class="type-grid">';
+  order.forEach(function(key){
+    var d = defs[key];
+    html += '<button class="type-opt" onclick="'+onSelectFn+'(\''+key+'\')">';
+    html += '<div class="t-icon">'+icon(d.icon)+'</div>';
+    html += '<div class="t-label">'+d.label+'</div>';
+    html += '</button>';
+  });
+  html += '</div>';
+  return html;
+}
+
+/* ============================================================
+   TRIGGERS
+   ============================================================ */
+function openTriggerTypeModal(){
+  openModal('Тип триггера', renderTypeGrid(TRIGGER_ORDER, TRIGGER_DEFS, 'pickTriggerType'), '');
+}
+function pickTriggerType(type){
+  draft = { id: uid(), type: type, params: {}, actions: [] };
+  draftCtx = { kind: 'triggerNew' };
+  openTriggerConfigModal();
+}
+function openTriggerModal(triggerId){
+  var t = state.triggers.find(function(x){ return x.id === triggerId; });
+  if(!t) return;
+  draft = { id: t.id, type: t.type, params: Object.assign({}, t.params), actions: t.actions };
+  draftCtx = { kind: 'triggerEdit', triggerId: t.id };
+  openTriggerConfigModal();
+}
+function openTriggerConfigModal(){
+  var def = TRIGGER_DEFS[draft.type];
+  var body = '';
+  if(def.fields.length){
+    body += renderFieldsHtml(def.fields, draft.params);
+  } else {
+    body += '<div class="note-box">Этот триггер срабатывает автоматически и не требует дополнительных настроек.</div>';
+  }
+  var footer = saveBtn('Сохранить триггер');
+  if(draftCtx.kind === 'triggerEdit'){
+    footer = '<button class="btn btn-secondary btn-block" style="margin-bottom:10px" onclick="deleteTrigger(\''+draft.id+'\'); closeModal();">'+icon('trash')+'Удалить триггер</button>' + saveBtn('Сохранить изменения');
+  }
+  openModal(def.label, body, footer);
+}
+function deleteTrigger(id){
+  state.triggers = state.triggers.filter(function(t){ return t.id !== id; });
+  renderScenario(); persist();
+}
+
+/* ============================================================
+   ACTIONS (belong to a trigger)
+   ============================================================ */
+var actionTargetTriggerId = null;
+
+function openActionTypeModal(triggerId){
+  actionTargetTriggerId = triggerId;
+  openModal('Тип действия', renderTypeGrid(ACTION_ORDER, ACTION_DEFS, 'pickActionType'), '');
+}
+function pickActionType(type){
+  draft = { id: uid(), type: type, params: {}, keyboardId: '' };
+  draftCtx = { kind: 'actionNew', triggerId: actionTargetTriggerId };
+  openActionConfigModal();
+}
+function openActionModal(triggerId, actionId){
+  var t = state.triggers.find(function(x){ return x.id === triggerId; });
+  if(!t) return;
+  var a = t.actions.find(function(x){ return x.id === actionId; });
+  if(!a) return;
+  draft = { id: a.id, type: a.type, params: Object.assign({}, a.params), keyboardId: a.keyboardId || '' };
+  draftCtx = { kind: 'actionEdit', triggerId: triggerId, actionId: actionId };
+  openActionConfigModal();
+}
+function openActionConfigModal(){
+  currentModalRerender = openActionConfigModal;
+  var def = ACTION_DEFS[draft.type];
+  var body = '';
+  if(def.fields.length){
+    body += renderFieldsHtml(def.fields, draft.params);
+  } else {
+    body += '<div class="note-box">У этого действия нет дополнительных настроек. При желании прикрепите клавиатуру ниже.</div>';
+  }
+  body += renderKeyboardAttach(draft.keyboardId);
+  var footer = saveBtn('Добавить действие');
+  if(draftCtx.kind === 'actionEdit'){
+    footer = '<button class="btn btn-secondary btn-block" style="margin-bottom:10px" onclick="deleteAction(\''+draftCtx.triggerId+'\',\''+draft.id+'\'); closeModal();">'+icon('trash')+'Удалить действие</button>' + saveBtn('Сохранить изменения');
+  }
+  openModal(def.label, body, footer);
+}
+function deleteAction(triggerId, actionId){
+  var t = state.triggers.find(function(x){ return x.id === triggerId; });
+  if(!t) return;
+  t.actions = t.actions.filter(function(a){ return a.id !== actionId; });
+  renderScenario(); persist();
+}
+
+/* ============================================================
+   KEYBOARDS
+   ============================================================ */
+function openKeyboardTypeModal(){
+  var body = '<div class="type-grid">' +
+    '<button class="type-opt" onclick="pickKeyboardType(\'inline\')"><div class="t-icon">'+icon('keys')+'</div><div class="t-label">Инлайн-кнопки<br><span style="font-weight:400;color:var(--text-faint)">под сообщением</span></div></button>' +
+    '<button class="type-opt" onclick="pickKeyboardType(\'reply\')"><div class="t-icon">'+icon('keyboardoff')+'</div><div class="t-label">Обычные кнопки<br><span style="font-weight:400;color:var(--text-faint)">в поле ввода</span></div></button>' +
+    '</div>';
+  openModal('Тип клавиатуры', body, '');
+}
+function pickKeyboardType(type){
+  var kb = { id: uid(), name: type==='inline' ? 'Новая инлайн-клавиатура' : 'Новая клавиатура', type: type, rows: [[]] };
+  state.keyboards.push(kb);
+  closeModal();
+  renderButtons(); persist();
+}
+function deleteKeyboard(id){
+  state.keyboards = state.keyboards.filter(function(k){ return k.id !== id; });
+  renderButtons(); persist();
+}
+function addRow(kbId){
+  var kb = state.keyboards.find(function(k){ return k.id === kbId; });
+  if(!kb) return;
+  kb.rows.push([]);
+  renderButtons(); persist();
+}
+function deleteRow(kbId, rowIdx){
+  var kb = state.keyboards.find(function(k){ return k.id === kbId; });
+  if(!kb) return;
+  kb.rows.splice(rowIdx, 1);
+  if(kb.rows.length === 0) kb.rows.push([]);
+  renderButtons(); persist();
+}
+
+/* ---- keyboard button modal ---- */
+function openButtonModal(kbId, rowIdx, btnIdx){
+  var kb = state.keyboards.find(function(k){ return k.id === kbId; });
+  if(!kb) return;
+  var existing = (btnIdx !== null && btnIdx !== undefined) ? kb.rows[rowIdx][btnIdx] : null;
+  var types = kb.type === 'inline' ? INLINE_BTN_TYPES : REPLY_BTN_TYPES;
+  draft = existing ? { text: existing.text, type: existing.type, value: existing.value || '' } : { text: '', type: Object.keys(types)[0], value: '' };
+  draftCtx = { kind: existing ? 'buttonEdit' : 'buttonNew', kbId: kbId, rowIdx: rowIdx, btnIdx: existing ? btnIdx : null };
+  renderButtonModalBody(types);
+}
+function renderButtonModalBody(types){
+  var body = '<div class="field"><label>Текст на кнопке</label><input type="text" value="'+escapeHtml(draft.text)+'" placeholder="Например: Каталог" oninput="draft.text=this.value"></div>';
+  body += '<div class="field"><label>Что делает кнопка</label><div class="segmented" id="btn-type-seg">';
+  Object.keys(types).forEach(function(key){
+    body += '<button class="'+(draft.type===key?'active':'')+'" onclick="setButtonType(\''+key+'\')">'+types[key]+'</button>';
+  });
+  body += '</div></div>';
+  body += '<div id="btn-value-field">'+renderButtonValueField()+'</div>';
+  var footer = saveBtn('Сохранить кнопку');
+  if(draftCtx.kind === 'buttonEdit'){
+    footer = '<button class="btn btn-secondary btn-block" style="margin-bottom:10px" onclick="deleteButtonDraft()">'+icon('trash')+'Удалить кнопку</button>' + saveBtn('Сохранить изменения');
+  }
+  openModal(draftCtx.kind === 'buttonEdit' ? 'Кнопка' : 'Новая кнопка', body, footer);
+}
+function renderButtonValueField(){
+  if(draft.type === 'bot_action'){
+    return '<div class="field"><label>Идентификатор действия</label><input type="text" value="'+escapeHtml(draft.value)+'" placeholder="Например: open_catalog" oninput="draft.value=this.value"><div class="field-hint">По этому идентификатору можно будет привязать триггер «Нажатие кнопки» во вкладке «Сценарий».</div></div>';
+  }
+  if(draft.type === 'url'){
+    return '<div class="field"><label>Ссылка</label><input type="text" value="'+escapeHtml(draft.value)+'" placeholder="https://..." oninput="draft.value=this.value"></div>';
+  }
+  return '';
+}
+function setButtonType(key){
+  draft.type = key;
+  var kb = state.keyboards.find(function(k){ return k.id === draftCtx.kbId; });
+  var types = kb.type === 'inline' ? INLINE_BTN_TYPES : REPLY_BTN_TYPES;
+  renderButtonModalBody(types);
+}
+function deleteButtonDraft(){
+  var kb = state.keyboards.find(function(k){ return k.id === draftCtx.kbId; });
+  if(kb){
+    kb.rows[draftCtx.rowIdx].splice(draftCtx.btnIdx, 1);
+  }
+  closeModal();
+  renderButtons(); persist();
+}
+
+/* ============================================================
+   COMMIT DRAFT (unified save handler)
+   ============================================================ */
+function commitDraft(){
+  if(!draftCtx) return;
+  switch(draftCtx.kind){
+    case 'triggerNew':
+      state.triggers.push({ id: draft.id, type: draft.type, params: draft.params, actions: [] });
+      break;
+    case 'triggerEdit':
+      var t = state.triggers.find(function(x){ return x.id === draftCtx.triggerId; });
+      if(t){ t.params = draft.params; }
+      break;
+    case 'actionNew':
+      var tr = state.triggers.find(function(x){ return x.id === draftCtx.triggerId; });
+      if(tr){ tr.actions.push({ id: draft.id, type: draft.type, params: draft.params, keyboardId: draft.keyboardId }); }
+      break;
+    case 'actionEdit':
+      var tr2 = state.triggers.find(function(x){ return x.id === draftCtx.triggerId; });
+      if(tr2){
+        var a = tr2.actions.find(function(x){ return x.id === draftCtx.actionId; });
+        if(a){ a.params = draft.params; a.keyboardId = draft.keyboardId; }
+      }
+      break;
+    case 'buttonNew':
+      var kbN = state.keyboards.find(function(k){ return k.id === draftCtx.kbId; });
+      if(kbN){ kbN.rows[draftCtx.rowIdx].push({ id: uid(), text: draft.text, type: draft.type, value: draft.value }); }
+      break;
+    case 'buttonEdit':
+      var kbE = state.keyboards.find(function(k){ return k.id === draftCtx.kbId; });
+      if(kbE){
+        var btn = kbE.rows[draftCtx.rowIdx][draftCtx.btnIdx];
+        if(btn){ btn.text = draft.text; btn.type = draft.type; btn.value = draft.value; }
+      }
+      break;
+  }
+  closeModal();
+  renderScenario(); renderButtons(); persist();
+}
+
+/* ============================================================
+   RENDER: TABS
+   ============================================================ */
+function setTab(tab){
+  activeTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.tab === tab); });
+  updateTabPill();
+  render();
+}
+/* Measures the active tab button's real box and positions the pill exactly
+   under it. Avoids the old calc()+translateX(100%) drift, where the pill's
+   own (slightly-too-narrow) width was used as the step size, so it landed
+   further left than tab 2 and tab 3 the more tabs there were. */
+function updateTabPill(){
+  var idx = ['scenario','buttons','payment'].indexOf(activeTab);
+  var bar = document.getElementById('tabbar');
+  var pill = document.getElementById('tab-pill');
+  var btns = document.querySelectorAll('.tab-btn');
+  if(!bar || !pill || !btns[idx]) return;
+  var barRect = bar.getBoundingClientRect();
+  var btnRect = btns[idx].getBoundingClientRect();
+  pill.style.left = Math.round(btnRect.left - barRect.left) + 'px';
+  pill.style.width = Math.round(btnRect.width) + 'px';
+}
+window.addEventListener('resize', updateTabPill);
+
+function render(){
+  if(activeTab === 'scenario') renderScenario();
+  else if(activeTab === 'buttons') renderButtons();
+  else renderPayment();
+}
+
+/* ---- Scenario tab ---- */
+function renderScenario(){
+  if(activeTab !== 'scenario') return;
+  var el = document.getElementById('tab-content');
+  if(state.triggers.length === 0){
+    el.innerHTML =
+      '<div class="empty-state">'+
+        '<div class="empty-icon">'+icon('wand')+'</div>'+
+        '<div class="empty-title">Пока нет ни одного сценария</div>'+
+        '<div class="empty-sub">Триггер — это событие, на которое бот отвечает: команда, сообщение, нажатие кнопки. Создайте первый, чтобы бот начал что-то делать.</div>'+
+        '<button class="btn btn-primary" onclick="openTriggerTypeModal()">'+icon('plus')+'Создать первый триггер</button>'+
+      '</div>';
+    return;
+  }
+  var html = '';
+  state.triggers.forEach(function(t){
+    var def = TRIGGER_DEFS[t.type];
+    var sub = triggerSubtitle(t);
+    html += '<div class="card">';
+    html += '<div class="card-head">';
+    html += '<div class="card-icon">'+icon(def.icon)+'</div>';
+    html += '<div class="card-title-wrap"><div class="card-title">'+def.label+'</div>'+(sub?'<div class="card-sub">'+escapeHtml(sub)+'</div>':'')+'</div>';
+    html += '<div class="card-actions">';
+    html += '<button class="icon-btn" onclick="openTriggerModal(\''+t.id+'\')">'+icon('edit')+'</button>';
+    html += '<button class="icon-btn danger" onclick="deleteTrigger(\''+t.id+'\')">'+icon('trash')+'</button>';
+    html += '</div></div>';
+    html += '<div class="chip-list">';
+    t.actions.forEach(function(a){
+      var adef = ACTION_DEFS[a.type];
+      html += '<div class="chip" onclick="openActionModal(\''+t.id+'\',\''+a.id+'\')">';
+      html += '<span class="chip-icon">'+icon(adef.icon)+'</span>';
+      html += '<span class="chip-text">'+adef.label+'</span>';
+      html += '<button class="chip-x" onclick="event.stopPropagation(); deleteAction(\''+t.id+'\',\''+a.id+'\')">'+icon('close')+'</button>';
+      html += '</div>';
+    });
+    html += '<button class="chip-add" onclick="openActionTypeModal(\''+t.id+'\')">'+icon('plus')+'Действие</button>';
+    html += '</div></div>';
+  });
+  html += '<button class="ghost-btn" onclick="openTriggerTypeModal()">'+icon('plus')+'Добавить триггер</button>';
+  el.innerHTML = html;
+}
+function triggerSubtitle(t){
+  if(t.type === 'command') return t.params.value ? '/'+t.params.value : 'команда не указана';
+  if(t.type === 'text_equals') return t.params.value ? '«'+t.params.value+'»' : 'текст не указан';
+  if(t.type === 'text_contains') return t.params.value ? 'содержит «'+t.params.value+'»' : 'текст не указан';
+  if(t.type === 'callback'){
+    if(!t.params.value) return 'кнопка не выбрана';
+    var found = null;
+    state.keyboards.forEach(function(kb){ kb.rows.forEach(function(row){ row.forEach(function(b){ if(b.value === t.params.value) found = b.text; }); }); });
+    return found ? 'кнопка «'+found+'»' : t.params.value;
+  }
+  return null;
+}
+
+/* ---- Buttons tab ---- */
+function renderButtons(){
+  if(activeTab !== 'buttons') return;
+  var el = document.getElementById('tab-content');
+  if(state.keyboards.length === 0){
+    el.innerHTML =
+      '<div class="empty-state">'+
+        '<div class="empty-icon">'+icon('keys')+'</div>'+
+        '<div class="empty-title">Пока нет ни одной клавиатуры</div>'+
+        '<div class="empty-sub">Клавиатуры — это кнопки, которые бот показывает в сообщениях. Создайте первую, а затем прикрепляйте её к действиям в сценарии.</div>'+
+        '<button class="btn btn-primary" onclick="openKeyboardTypeModal()">'+icon('plus')+'Создать первую клавиатуру</button>'+
+      '</div>';
+    return;
+  }
+  var html = '';
+  state.keyboards.forEach(function(kb){
+    html += '<div class="card">';
+    html += '<div class="card-head">';
+    html += '<div class="card-icon">'+icon(kb.type==='inline' ? 'keys' : 'keyboardoff')+'</div>';
+    html += '<div class="card-title-wrap">';
+    html += '<input class="kb-name-input" type="text" value="'+escapeHtml(kb.name)+'" oninput="renameKeyboard(\''+kb.id+'\', this.value)">';
+    html += '<div class="kb-type-badge">'+(kb.type==='inline'?'Инлайн':'Обычная')+'</div>';
+    html += '</div>';
+    html += '<div class="card-actions"><button class="icon-btn danger" onclick="deleteKeyboard(\''+kb.id+'\')">'+icon('trash')+'</button></div>';
+    html += '</div>';
+    kb.rows.forEach(function(row, rIdx){
+      html += '<div class="kb-row">';
+      html += '<div class="kb-row-head"><span class="kb-row-label">Строка '+(rIdx+1)+'</span>';
+      if(kb.rows.length > 1){
+        html += '<button class="row-del" onclick="deleteRow(\''+kb.id+'\','+rIdx+')">'+icon('close')+'</button>';
+      }
+      html += '</div>';
+      html += '<div class="kb-row-buttons">';
+      row.forEach(function(btn, bIdx){
+        html += '<div class="kb-btn-chip" onclick="openButtonModal(\''+kb.id+'\','+rIdx+','+bIdx+')"><span>'+escapeHtml(btn.text || 'Без текста')+'</span></div>';
+      });
+      html += '<button class="chip-add" style="padding:7px 11px" onclick="openButtonModal(\''+kb.id+'\','+rIdx+',null)">'+icon('plus')+'Кнопка</button>';
+      html += '</div>';
+      html += '</div>';
+    });
+    html += '<button class="ghost-btn" onclick="addRow(\''+kb.id+'\')">'+icon('plus')+'Строка</button>';
+    html += '</div>';
+  });
+  html += '<button class="ghost-btn" onclick="openKeyboardTypeModal()">'+icon('plus')+'Добавить клавиатуру</button>';
+  el.innerHTML = html;
+}
+function renameKeyboard(id, value){
+  var kb = state.keyboards.find(function(k){ return k.id === id; });
+  if(kb){ kb.name = value; persist(); }
+}
+
+/* ---- Payment tab ---- */
+var FREE_ALLOWED_ID = 7113397602;
+function currentTelegramUserId(){
+  try{
+    return window.Telegram && Telegram.WebApp && Telegram.WebApp.initDataUnsafe && Telegram.WebApp.initDataUnsafe.user
+      ? Telegram.WebApp.initDataUnsafe.user.id : null;
+  }catch(e){ return null; }
+}
+function renderPayment(){
+  if(activeTab !== 'payment') return;
+  var el = document.getElementById('tab-content');
+  var totalActions = state.triggers.reduce(function(s,t){ return s + t.actions.length; }, 0);
+  var freeAllowed = currentTelegramUserId() === FREE_ALLOWED_ID;
+
+  var html = '<div class="section-label">Сводка</div>';
+  html += '<div class="card">';
+  html += summaryRow('Название бота', state.botName || 'Не указано');
+  html += summaryRow('Токен', state.botToken ? 'Добавлен' : 'Не указан');
+  html += summaryRow('Триггеров', String(state.triggers.length));
+  html += summaryRow('Действий', String(totalActions));
+  html += summaryRow('Клавиатур', String(state.keyboards.length));
+  html += '</div>';
+
+  html += '<div class="section-label">Тариф</div>';
+  html += tariffCard('free', 'Бесплатно', freeAllowed ? 'Доступно вам' : 'Доступно только по приглашению', '0 ₽', !freeAllowed);
+  html += tariffCard('stars', '7 Telegram Stars', 'Оплата внутри Telegram', '⭐ 7', false);
+  html += tariffCard('crypto', 'CryptoBot', 'Оплата криптовалютой', '4 ₽', false);
+
+  html += '<div class="sticky-cta"><button class="btn btn-primary btn-block" id="submit-btn" onclick="submitOrder()">'+icon('bolt')+'Получить бота</button></div>';
+
+  el.innerHTML = html;
+}
+function summaryRow(label, val){
+  return '<div class="summary-row"><span class="s-label">'+label+'</span><span class="s-val">'+escapeHtml(val)+'</span></div>';
+}
+function tariffCard(key, title, sub, price, disabled){
+  var selected = state.tariff === key;
+  return '<div class="tariff-card '+(selected?'selected':'')+' '+(disabled?'disabled':'')+'" onclick="'+(disabled?'':'selectTariff(\''+key+'\')')+'">'+
+    '<div class="tariff-radio"><div class="dot"></div></div>'+
+    '<div class="tariff-body"><div class="tariff-title">'+title+(disabled?' '+icon('lock'):'')+'</div><div class="tariff-sub">'+sub+'</div></div>'+
+    '<div class="tariff-price">'+price+'</div>'+
+  '</div>';
+}
+function selectTariff(key){
+  state.tariff = key;
+  renderPayment(); persist();
+}
+function syncSummary(){
+  if(activeTab === 'payment') renderPayment();
+}
+
+/* ============================================================
+   BUILD CONFIG + SUBMIT
+   ============================================================ */
+function buildConfig(){
+  return {
+    bot_name: state.botName,
+    bot_token: state.botToken,
+    triggers: state.triggers.map(function(t){
+      return {
+        type: t.type,
+        value: t.params.value || null,
+        params: t.params,
+        actions: t.actions.map(function(a){
+          return { type: a.type, params: a.params, keyboard_id: a.keyboardId || null };
+        })
+      };
+    }),
+    keyboards: state.keyboards.map(function(kb){
+      return {
+        id: kb.id,
+        name: kb.name,
+        type: kb.type,
+        rows: kb.rows.map(function(row){
+          return row.map(function(b){ return { text: b.text, type: b.type, value: b.value || null }; });
+        })
+      };
+    }),
+    tariff: state.tariff
+  };
+}
+
+function showToast(msg, isError){
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isError ? ' error' : '');
+  setTimeout(function(){ t.classList.remove('show'); }, 3200);
+}
+
+function flagFieldError(id){
+  var el = document.getElementById(id);
+  if(!el) return;
+  el.classList.remove('input-error');
+  void el.offsetWidth; // restart animation
+  el.classList.add('input-error');
+  el.focus();
+}
+function clearFieldError(id){
+  var el = document.getElementById(id);
+  if(el) el.classList.remove('input-error');
+}
+
+function submitOrder(){
+  if(!state.botName){
+    showToast('Укажите название бота', true);
+    return;
+  }
+  if(!state.botToken || !state.botToken.trim()){
+    showToast('Токен от @BotFather обязателен', true);
+    flagFieldError('bot-token-input');
+    return;
+  }
+  if(state.triggers.length === 0){
+    showToast('Добавьте хотя бы один триггер', true);
+    return;
+  }
+  var btn = document.getElementById('submit-btn');
+  var originalHtml = btn.innerHTML;
+  btn.innerHTML = '<div class="spinner"></div>Отправляем...';
+  btn.disabled = true;
+
+  var userId = currentTelegramUserId();
+  var payload = { config: buildConfig(), tariff: state.tariff, user_id: userId };
+
+  fetch('/api/create_order', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }).then(function(res){ return res.json(); }).then(function(data){
+    btn.innerHTML = originalHtml;
+    btn.disabled = false;
+    if(!data || !data.status){
+      showToast('Не удалось создать заказ', true);
+      return;
+    }
+    if(data.status === 'free_download' && data.url){
+      showToast('Бот готов, открываем ссылку…');
+      window.location.href = data.url;
+    } else if(data.status === 'stars_invoice'){
+      showToast('Счёт выставлен, завершите оплату в Telegram');
+      if(data.invoice_link && window.Telegram && Telegram.WebApp.openInvoice){
+        Telegram.WebApp.openInvoice(data.invoice_link, function(){
+          if(window.Telegram && Telegram.WebApp) Telegram.WebApp.close();
+        });
+      } else if(window.Telegram && Telegram.WebApp){
+        Telegram.WebApp.close();
+      }
+    } else if(data.status === 'crypto_link' && data.url){
+      showToast('Открываем ссылку на оплату…');
+      if(window.Telegram && Telegram.WebApp.openLink){
+        Telegram.WebApp.openLink(data.url);
+      } else {
+        window.open(data.url, '_blank');
+      }
+    } else {
+      showToast('Заказ создан');
+    }
+  }).catch(function(){
+    btn.innerHTML = originalHtml;
+    btn.disabled = false;
+    showToast('Ошибка сети. Попробуйте ещё раз', true);
+  });
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+function initSparkles(){
+  var layer = document.getElementById('bg-fx');
+  if(!layer || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  var count = 22;
+  for(var i=0; i<count; i++){
+    var s = document.createElement('span');
+    s.className = 'spark';
+    var size = (Math.random()*1.6 + 1).toFixed(1);
+    s.style.left = (Math.random()*100).toFixed(1) + '%';
+    s.style.top = (Math.random()*100).toFixed(1) + '%';
+    s.style.width = size + 'px';
+    s.style.height = size + 'px';
+    s.style.animationDuration = (Math.random()*3 + 2.4).toFixed(2) + 's';
+    s.style.animationDelay = (Math.random()*4).toFixed(2) + 's';
+    layer.appendChild(s);
+  }
+}
+
+function init(){
+  try{
+    if(window.Telegram && Telegram.WebApp){
+      Telegram.WebApp.ready();
+      Telegram.WebApp.expand();
+      if(Telegram.WebApp.setHeaderColor) Telegram.WebApp.setHeaderColor('#1b1220');
+      if(Telegram.WebApp.setBackgroundColor) Telegram.WebApp.setBackgroundColor('#1b1220');
+    }
+  }catch(e){}
+  restore();
+  document.getElementById('bot-name-input').value = state.botName;
+  document.getElementById('bot-token-input').value = state.botToken;
+  initSparkles();
+  setTab('scenario');
+}
+init();
+</script>
+</body>
+</html>
