@@ -1,4 +1,3 @@
 flask
-gunicorn
 httpx
 python-dotenv
