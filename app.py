@@ -8,6 +8,7 @@ Env vars:
     CRYPTO_PAY_TOKEN        - see payment.py
     PUBLIC_BASE_URL         - e.g. https://yourdomain.com (no trailing slash)
     ADMIN_ID                - Telegram user ID of the support admin
+    BOT_USERNAME            - bot username for gift links (without @)
 """
 
 import asyncio
@@ -39,6 +40,7 @@ TELEGRAM_WEBHOOK_SECRET = os.environ.get("TELEGRAM_WEBHOOK_SECRET", "")
 PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "").rstrip("/")
 WEBAPP_URL = PUBLIC_BASE_URL
 ADMIN_ID = int(os.environ.get("ADMIN_ID", "0"))
+BOT_USERNAME = os.environ.get("BOT_USERNAME", "cfbuilder_bot")
 TELEGRAM_API = f"https://api.telegram.org/bot{MAIN_BOT_TOKEN}"
 
 FREE_ALLOWED_ID = 7113397602
@@ -436,7 +438,7 @@ def telegram_webhook():
                 "4. Настрой кнопки\n"
                 "5. Выбери тариф и получи готовый ZIP\n\n"
                 "💰 <b>Тарифы:</b> Бесплатно (по приглашению) · 7⭐ Stars · 4₽ CryptoBot\n\n"
-                "ℹ️ Напиши /help ваш вопрос для связи с поддержкой.",
+                "ℹ️ Напиши /help для связи с поддержкой.",
                 reply_markup={
                     "inline_keyboard": [[
                         {"text": "🚀 Открыть конструктор", "web_app": {"url": WEBAPP_URL}}
@@ -445,23 +447,39 @@ def telegram_webhook():
             )
             return jsonify({"ok": True})
 
-        # /help
+        # /help — support ticket (доступно всем)
         if text.startswith("/help"):
             issue = text.replace("/help", "").strip()
             support.handle_ticket(tg_helper, user_id, username, first_name, issue, ADMIN_ID)
             return jsonify({"ok": True})
 
-        # /gift
-        if gift.handle_gift_command(tg_helper, text, user_id, ADMIN_ID, PUBLIC_BASE_URL):
-            return jsonify({"ok": True})
+        # Админские команды — только для ADMIN_ID
+        if str(user_id) == str(ADMIN_ID):
+            # /gift
+            if gift.handle_gift_command(tg_helper, text, user_id, ADMIN_ID):
+                return jsonify({"ok": True})
 
-        # /all
-        if broadcast.handle_broadcast(tg_helper, text, user_id, ADMIN_ID):
-            return jsonify({"ok": True})
+            # /all
+            if broadcast.handle_broadcast(tg_helper, text, user_id, ADMIN_ID):
+                return jsonify({"ok": True})
 
-        # admin reply to ticket
-        if support.handle_admin_reply(tg_helper, msg, ADMIN_ID):
-            return jsonify({"ok": True})
+            # admin reply to ticket
+            if support.handle_admin_reply(tg_helper, msg, ADMIN_ID):
+                return jsonify({"ok": True})
+
+        # Неизвестная команда или сообщение от обычного пользователя
+        if text.startswith("/"):
+            tg_send_message(chat_id,
+                "ℹ️ <b>Неизвестная команда.</b>\n\n"
+                "Доступные действия:\n"
+                "• Нажмите кнопку меню чтобы открыть конструктор\n"
+                "• Напишите /help для связи с поддержкой"
+            )
+        else:
+            tg_send_message(chat_id,
+                "👋 <b>Я вас не понял.</b>\n\n"
+                "Нажмите кнопку меню чтобы открыть конструктор, или напишите /help для связи с поддержкой."
+            )
 
     return jsonify({"ok": True})
 
