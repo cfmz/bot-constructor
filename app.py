@@ -1,351 +1,399 @@
 """
-Главный сервер конструктора Telegram-ботов.
-Работает как один Web Service на Render (бесплатный тариф).
+app.py
+Flask backend for the bot-constructor webapp (index.html).
 
-Переменные окружения (задать в Render -> Environment):
-  BOT_TOKEN              — токен ЭТОГО бота (бот-конструктор, шлёт файлы,
-                            уведомления, обрабатывает /confirm)
-  ADMIN_ID               — твой Telegram user_id (для ручных подтверждений)
-  CRYPTOBOT_TOKEN         — токен из @CryptoBot -> Crypto Pay -> Create App
-  WEBAPP_URL              — публичный URL этого сервиса (https://xxx.onrender.com)
-  DIRECT_PAYMENT_INSTRUCTIONS (необяз.) — текст с реквизитами для ручной оплаты
-
-Запуск локально:
-  pip install -r requirements.txt
-  uvicorn app:app --reload
+Env vars:
+    MAIN_BOT_TOKEN          - token of the Telegram bot that hosts this WebApp
+                              (used to send invoices, receive /webhook updates,
+                              and deliver the finished bot to the buyer)
+    TELEGRAM_WEBHOOK_SECRET - optional; if set, /webhook checks the
+                              X-Telegram-Bot-Api-Secret-Token header
+    CRYPTO_PAY_TOKEN        - see payment.py
+    PUBLIC_BASE_URL         - e.g. https://yourdomain.com (no trailing slash),
+                              used to build absolute download links
 """
-import io
-import os
-import re
-import uuid
-import zipfile
+
 import asyncio
-import mimetypes
+import json
+import os
+import sqlite3
+import uuid
 from pathlib import Path
 
-from fastapi import FastAPI, Request, HTTPException, UploadFile, File
-from fastapi.responses import StreamingResponse, HTMLResponse, JSONResponse, FileResponse
-from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
-
-import db
-import payment
-from generator import generate_bot_files
-from pdf_instruction import build_pdf
-
-BOT_TOKEN = os.getenv("BOT_TOKEN", "")
-ADMIN_ID = os.getenv("ADMIN_ID", "")
-WEBAPP_URL = os.getenv("WEBAPP_URL", "")
-
-# Куда временно сохраняются файлы, загруженные пользователем в конструкторе
-# (фото/видео/документы/голосовые/стикеры), до момента сборки ZIP.
-# ВНИМАНИЕ: на Render free tier диск эфемерный — файлы живут, пока сервис
-# не перезапустится/не уснёт надолго. Обычно этого достаточно, т.к. сборка
-# сценария и оплата происходят в рамках одной сессии.
-MEDIA_DIR = Path("uploads_media")
-MEDIA_DIR.mkdir(exist_ok=True)
-
-MAX_MEDIA_SIZE = 20 * 1024 * 1024  # 20 МБ — лимит на файл, который принимает Bot API
-
-app = FastAPI(title="Telegram Bot Constructor")
-db.init_db()
-
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
-
-def _safe_filename(name: str) -> str:
-    name = os.path.basename(name or "file")
-    name = re.sub(r"[^A-Za-z0-9._-]+", "_", name).strip("_")
-    return name or "file"
-
-
-@app.get("/", response_class=HTMLResponse)
-async def index():
-    return Path("static/index.html").read_text(encoding="utf-8")
-
-
-# ---------- Telegram Bot API helper (для уведомлений, без aiogram) ----------
 import httpx
+from flask import Flask, jsonify, request, send_file, g
 
-TG_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
+import generator
+import payment
+
+BASE_DIR = Path(__file__).resolve().parent
+UPLOADS_DIR = BASE_DIR / "uploads"
+GENERATED_DIR = BASE_DIR / "generated"
+DB_PATH = BASE_DIR / "orders.db"
+UPLOADS_DIR.mkdir(exist_ok=True)
+GENERATED_DIR.mkdir(exist_ok=True)
+
+MAIN_BOT_TOKEN = os.environ.get("MAIN_BOT_TOKEN", "")
+TELEGRAM_WEBHOOK_SECRET = os.environ.get("TELEGRAM_WEBHOOK_SECRET", "")
+PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "").rstrip("/")
+TELEGRAM_API = f"https://api.telegram.org/bot{MAIN_BOT_TOKEN}"
+
+FREE_ALLOWED_ID = 7113397602
+STARS_PRICE = 7          # XTR
+CRYPTO_PRICE_RUB = "4"   # settled in fiat-equivalent crypto
+
+MAX_UPLOAD_MB = 25
+
+app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_MB * 1024 * 1024
 
 
-async def tg_send_message(chat_id: int | str, text: str, reply_markup: dict | None = None):
-    if not BOT_TOKEN:
-        return
-    payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
-    if reply_markup:
-        payload["reply_markup"] = reply_markup
-    async with httpx.AsyncClient() as client:
-        await client.post(f"{TG_API}/sendMessage", json=payload)
+# ---------------------------------------------------------------------------
+# Storage
+# ---------------------------------------------------------------------------
+def get_db():
+    if "db" not in g:
+        g.db = sqlite3.connect(DB_PATH)
+        g.db.row_factory = sqlite3.Row
+    return g.db
 
 
-async def tg_send_document(chat_id: int | str, filename: str, content: bytes, caption: str = ""):
-    if not BOT_TOKEN:
-        return
-    async with httpx.AsyncClient() as client:
-        await client.post(
-            f"{TG_API}/sendDocument",
+@app.teardown_appcontext
+def close_db(_exc):
+    db = g.pop("db", None)
+    if db is not None:
+        db.close()
+
+
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS orders (
+            id TEXT PRIMARY KEY,
+            user_id INTEGER,
+            tariff TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            config TEXT NOT NULL,
+            file_path TEXT,
+            crypto_invoice_id INTEGER,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    conn.commit()
+    conn.close()
+
+
+init_db()
+
+
+def error(message: str, code: int = 400):
+    return jsonify({"ok": False, "error": message}), code
+
+
+# ---------------------------------------------------------------------------
+# Telegram Bot API helpers (sync, via httpx) — for the MAIN bot only.
+# Bots generated for buyers use their own token inside the downloaded project.
+# ---------------------------------------------------------------------------
+def tg_call(method: str, payload: dict) -> dict:
+    if not MAIN_BOT_TOKEN:
+        raise RuntimeError("MAIN_BOT_TOKEN is not configured")
+    resp = httpx.post(f"{TELEGRAM_API}/{method}", json=payload, timeout=15)
+    data = resp.json()
+    if not data.get("ok"):
+        raise RuntimeError(data.get("description", f"telegram {method} failed"))
+    return data["result"]
+
+
+def tg_create_stars_invoice_link(order_id: str, title: str, description: str, amount_xtr: int) -> str:
+    result = tg_call(
+        "createInvoiceLink",
+        {
+            "title": title[:32] or "Заказ бота",
+            "description": description[:255] or "Готовый Telegram-бот",
+            "payload": order_id,
+            "provider_token": "",  # Telegram Stars needs no provider token
+            "currency": "XTR",
+            "prices": [{"label": title[:32] or "Бот", "amount": amount_xtr}],
+        },
+    )
+    return result  # createInvoiceLink returns the link as a plain string
+
+
+def tg_send_document(chat_id: int, file_path: Path, caption: str = ""):
+    with open(file_path, "rb") as f:
+        resp = httpx.post(
+            f"{TELEGRAM_API}/sendDocument",
             data={"chat_id": chat_id, "caption": caption},
-            files={"document": (filename, content)},
+            files={"document": (file_path.name, f, "application/zip")},
+            timeout=60,
         )
+    data = resp.json()
+    if not data.get("ok"):
+        raise RuntimeError(data.get("description", "sendDocument failed"))
+    return data["result"]
 
 
-# --------------------------------- API ---------------------------------
-
-@app.post("/api/upload_media")
-async def upload_media(file: UploadFile = File(...)):
-    """
-    Принимает фото/видео/документ/голосовое/стикер из Web App,
-    сохраняет на диск, возвращает media_id — на него дальше ссылается
-    сценарий. Реальный файл попадёт в ZIP только на этапе выдачи заказа.
-    """
-    content = await file.read()
-    if len(content) > MAX_MEDIA_SIZE:
-        raise HTTPException(413, "Файл слишком большой (максимум 20 МБ)")
-
-    media_id = uuid.uuid4().hex[:12]
-    safe_name = _safe_filename(file.filename)
-    dest = MEDIA_DIR / f"{media_id}__{safe_name}"
-    dest.write_bytes(content)
-
-    return {
-        "media_id": media_id,
-        "filename": safe_name,
-        "preview_url": f"/api/media_preview/{media_id}",
-        "content_type": file.content_type,
-    }
+def tg_send_message(chat_id: int, text: str):
+    try:
+        tg_call("sendMessage", {"chat_id": chat_id, "text": text})
+    except Exception:
+        pass
 
 
-@app.get("/api/media_preview/{media_id}")
-async def media_preview(media_id: str):
-    matches = list(MEDIA_DIR.glob(f"{media_id}__*"))
-    if not matches:
-        raise HTTPException(404, "Файл не найден")
-    path = matches[0]
-    media_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
-    return FileResponse(path, media_type=media_type)
+# ---------------------------------------------------------------------------
+# Order helpers
+# ---------------------------------------------------------------------------
+def validate_config(config: dict) -> str | None:
+    if not isinstance(config, dict):
+        return "config must be an object"
+    if not config.get("bot_name"):
+        return "bot_name is required"
+    if not config.get("bot_token"):
+        return "bot_token is required"
+    if not config.get("triggers"):
+        return "at least one trigger is required"
+    return None
 
 
-class SaveScenarioBody(BaseModel):
-    user_id: int
-    config: dict
+def build_and_store_bot(order_id: str, config: dict) -> Path:
+    zip_bytes = generator.generate_bot_zip(config, uploads_dir=str(UPLOADS_DIR))
+    out_path = GENERATED_DIR / f"{order_id}.zip"
+    out_path.write_bytes(zip_bytes)
+    return out_path
 
 
-@app.post("/api/save_scenario")
-async def save_scenario(body: SaveScenarioBody):
-    scenario_id = db.save_scenario(body.user_id, body.config)
-    return {"scenario_id": scenario_id}
+def finalize_paid_order(db, order_row) -> Path:
+    """Generates the bot (if not already generated) and returns its path."""
+    order_id = order_row["id"]
+    if order_row["file_path"] and Path(order_row["file_path"]).is_file():
+        return Path(order_row["file_path"])
 
-
-class CreateOrderBody(BaseModel):
-    user_id: int
-    scenario_id: str
-    tariff: str  # 'direct' | 'cryptobot'
-
-
-@app.post("/api/create_order")
-async def create_order(body: CreateOrderBody):
-    scenario = db.get_scenario(body.scenario_id)
-    if not scenario:
-        raise HTTPException(404, "Сценарий не найден")
-
-    order_id = db.create_order(body.scenario_id, body.user_id, body.tariff)
-
-    if body.tariff == "direct":
-        # Ручная оплата: показываем инструкцию с реквизитами
-        await tg_send_message(
-            body.user_id,
-            f"💳 Оплата 5₽\n\n{payment.DIRECT_PAYMENT_INSTRUCTIONS}\n\n"
-            f"Номер заказа: <code>{order_id}</code>\n"
-            f"После перевода нажми кнопку ниже.",
-            reply_markup={
-                "inline_keyboard": [[
-                    {"text": "Я оплатил ✅", "callback_data": f"paid_direct:{order_id}"}
-                ]]
-            },
-        )
-        return {"order_id": order_id, "method": "direct"}
-
-    elif body.tariff == "cryptobot":
-        invoice = await payment.create_cryptobot_invoice(4, order_id)
-        db.set_order_status(order_id, "pending", payment_ref=str(invoice["invoice_id"]))
-        return {"order_id": order_id, "method": "cryptobot", "pay_url": invoice["pay_url"]}
-
-    raise HTTPException(400, "Неизвестный тариф")
-
-
-@app.get("/api/check_order/{order_id}")
-async def check_order(order_id: str):
-    """Фронт может поллить этот эндпоинт, чтобы узнать, оплачен ли заказ (для CryptoBot)."""
-    order = db.get_order(order_id)
-    if not order:
-        raise HTTPException(404, "Заказ не найден")
-
-    if order["status"] == "pending" and order["tariff"] == "cryptobot" and order["payment_ref"]:
-        status = await payment.check_cryptobot_invoice(order["payment_ref"])
-        if status == "paid":
-            db.set_order_status(order_id, "paid")
-            order["status"] = "paid"
-            await _deliver_order(order_id)
-
-    return {"status": order["status"]}
-
-
-def _embed_uploaded_media(config: dict, zf: zipfile.ZipFile) -> dict:
-    """
-    Находит все действия, ссылающиеся на загруженный файл (media.source
-    == 'upload'), копирует реальный файл в архив под media/, и
-    переписывает имя файла в конфиге на то, что реально лежит в ZIP —
-    чтобы engine.py нашёл его по относительному пути media/<filename>.
-    """
-    for handler in config.get("handlers", []):
-        for action in handler.get("actions", []):
-            media = action.get("media")
-            if not media or media.get("source") != "upload":
-                continue
-            media_id = media.get("media_id", "")
-            matches = list(MEDIA_DIR.glob(f"{media_id}__*"))
-            if not matches:
-                continue  # файл потерялся (например, сервис перезапустился) — пропускаем
-            src = matches[0]
-            arc_filename = f"{media_id}_{src.name.split('__', 1)[1]}"
-            zf.write(src, f"media/{arc_filename}")
-            media["filename"] = arc_filename
-    return config
-
-
-async def _build_zip_from_config(config: dict) -> tuple[bytes, str]:
-    bot_name = config.get("bot_name", "Мой бот")
-    pdf_bytes = build_pdf(bot_name)
-
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-        config = _embed_uploaded_media(config, zf)  # пишет файлы в media/ и правит config
-        files = generate_bot_files(config)           # генерирует код уже с финальным config.json
-        for fname, content in files.items():
-            zf.writestr(fname, content)
-        zf.writestr("Инструкция.pdf", pdf_bytes)
-    buf.seek(0)
-    safe_name = "".join(c for c in bot_name if c.isalnum() or c in " _-").strip() or "bot"
-    return buf.read(), f"{safe_name}.zip"
-
-
-async def _build_zip(order_id: str) -> tuple[bytes, str]:
-    order = db.get_order(order_id)
-    scenario = db.get_scenario(order["scenario_id"])
-    return await _build_zip_from_config(scenario["config"])
-
-
-FREE_USER_ID = int(os.getenv("FREE_USER_ID", "0"))
-
-
-@app.get("/api/download_free/{scenario_id}")
-async def download_free(scenario_id: str):
-    """Мгновенная скачка без оплаты — только для тестового ID (FREE_USER_ID в env)."""
-    scenario = db.get_scenario(scenario_id)
-    if not scenario:
-        raise HTTPException(404, "Сценарий не найден")
-    if not FREE_USER_ID or scenario["user_id"] != FREE_USER_ID:
-        raise HTTPException(403, "Бесплатный тариф недоступен для этого пользователя")
-
-    zip_bytes, filename = await _build_zip_from_config(scenario["config"])
-    return StreamingResponse(
-        io.BytesIO(zip_bytes),
-        media_type="application/zip",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    config = json.loads(order_row["config"])
+    out_path = build_and_store_bot(order_id, config)
+    db.execute(
+        "UPDATE orders SET status = 'paid', file_path = ? WHERE id = ?",
+        (str(out_path), order_id),
     )
+    db.commit()
+    return out_path
 
 
-async def _deliver_order(order_id: str):
-    order = db.get_order(order_id)
-    zip_bytes, filename = await _build_zip(order_id)
-    await tg_send_document(
-        order["user_id"], filename, zip_bytes,
-        caption="Готово! 🎉 Держи архив с кодом бота и инструкцией.",
-    )
-    db.set_order_status(order_id, "delivered")
+# ---------------------------------------------------------------------------
+# Routes
+# ---------------------------------------------------------------------------
+@app.route("/")
+def index():
+    return send_file(BASE_DIR / "index.html")
 
 
-@app.get("/api/download/{order_id}")
-async def download(order_id: str):
-    """Прямая скачка (например, если пользователь открывает Web App в браузере)."""
-    order = db.get_order(order_id)
-    if not order:
-        raise HTTPException(404, "Заказ не найден")
-    if order["status"] not in ("paid", "delivered"):
-        raise HTTPException(402, "Заказ ещё не оплачен")
+@app.route("/api/upload_media", methods=["POST"])
+def upload_media():
+    try:
+        f = request.files.get("file")
+        if not f or not f.filename:
+            return error("no file provided")
 
-    zip_bytes, filename = await _build_zip(order_id)
-    return StreamingResponse(
-        io.BytesIO(zip_bytes),
-        media_type="application/zip",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
+        ext = os.path.splitext(f.filename)[1][:10]
+        name = f"{uuid.uuid4().hex}{ext}"
+        dest = UPLOADS_DIR / name
+        f.save(dest)
+
+        return jsonify({"ok": True, "url": f"/media/{name}"})
+    except Exception as e:
+        return error(f"upload failed: {e}", 500)
 
 
-# --------------------------- Telegram webhook ---------------------------
-# Обрабатывает: /start, /confirm <order_id> (только ADMIN_ID),
-# callback "paid_direct:<order_id>" от пользователя
+@app.route("/media/<path:filename>")
+def serve_media(filename):
+    path = UPLOADS_DIR / filename
+    if not path.is_file():
+        return error("not found", 404)
+    return send_file(path)
 
-@app.post("/webhook")
-async def telegram_webhook(request: Request):
-    update = await request.json()
 
-    if "callback_query" in update:
-        cq = update["callback_query"]
-        data = cq.get("data", "")
-        user_id = cq["from"]["id"]
-        if data.startswith("paid_direct:"):
-            order_id = data.split(":", 1)[1]
-            order = db.get_order(order_id)
-            if order:
-                await tg_send_message(
-                    user_id, "Спасибо! Проверяю оплату, обычно это занимает пару минут ⏳"
-                )
-                if ADMIN_ID:
-                    await tg_send_message(
-                        ADMIN_ID,
-                        f"🔔 Новая ручная оплата\nЗаказ: <code>{order_id}</code>\n"
-                        f"От: {user_id}\n\nПодтвердить: /confirm {order_id}",
-                    )
-        return JSONResponse({"ok": True})
+@app.route("/api/create_order", methods=["POST"])
+def create_order():
+    try:
+        body = request.get_json(force=True, silent=True) or {}
+        config = body.get("config")
+        tariff = body.get("tariff", "stars")
+        user_id = body.get("user_id")
 
-    if "message" in update:
-        msg = update["message"]
-        text = msg.get("text", "")
-        user_id = msg["from"]["id"]
+        problem = validate_config(config)
+        if problem:
+            return error(problem)
 
-        if text.startswith("/confirm") and str(user_id) == str(ADMIN_ID):
-            parts = text.split()
-            if len(parts) == 2:
-                order_id = parts[1]
-                order = db.get_order(order_id)
-                if not order:
-                    await tg_send_message(user_id, "Заказ не найден")
-                else:
-                    db.set_order_status(order_id, "paid")
-                    await _deliver_order(order_id)
-                    await tg_send_message(user_id, f"Заказ {order_id} подтверждён и доставлен ✅")
-            return JSONResponse({"ok": True})
+        if tariff not in ("free", "stars", "crypto"):
+            return error("unknown tariff")
 
-        if text.startswith("/start"):
-            await tg_send_message(
-                user_id,
-                "Привет! Это конструктор Telegram-ботов.\n"
-                "Открой Web App, чтобы визуально собрать своего бота.",
-                reply_markup={
-                    "inline_keyboard": [[
-                        {"text": "🚀 Открыть конструктор", "web_app": {"url": WEBAPP_URL}}
-                    ]]
-                } if WEBAPP_URL else None,
+        order_id = uuid.uuid4().hex
+        db = get_db()
+
+        if tariff == "free":
+            if user_id != FREE_ALLOWED_ID:
+                return error("free tariff is available by invitation only", 403)
+            db.execute(
+                "INSERT INTO orders (id, user_id, tariff, status, config) VALUES (?, ?, 'free', 'pending', ?)",
+                (order_id, user_id, json.dumps(config, ensure_ascii=False)),
             )
+            db.commit()
+            row = db.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
+            finalize_paid_order(db, row)
+            url = f"{PUBLIC_BASE_URL}/download/{order_id}" if PUBLIC_BASE_URL else f"/download/{order_id}"
+            return jsonify({"ok": True, "status": "free_download", "url": url})
 
-    return JSONResponse({"ok": True})
+        if tariff == "stars":
+            db.execute(
+                "INSERT INTO orders (id, user_id, tariff, status, config) VALUES (?, ?, 'stars', 'pending', ?)",
+                (order_id, user_id, json.dumps(config, ensure_ascii=False)),
+            )
+            db.commit()
+            try:
+                link = tg_create_stars_invoice_link(
+                    order_id,
+                    title=config.get("bot_name") or "Ваш бот",
+                    description="Готовый Telegram-бот по вашему сценарию",
+                    amount_xtr=STARS_PRICE,
+                )
+            except Exception as e:
+                return error(f"could not create stars invoice: {e}", 502)
+            return jsonify({"ok": True, "status": "stars_invoice", "invoice_link": link})
+
+        # tariff == "crypto"
+        db.execute(
+            "INSERT INTO orders (id, user_id, tariff, status, config) VALUES (?, ?, 'crypto', 'pending', ?)",
+            (order_id, user_id, json.dumps(config, ensure_ascii=False)),
+        )
+        db.commit()
+        try:
+            invoice = asyncio.run(
+                payment.create_invoice(
+                    amount=CRYPTO_PRICE_RUB,
+                    fiat="RUB",
+                    description=f"Бот «{config.get('bot_name') or 'без названия'}»",
+                    payload=order_id,
+                )
+            )
+        except payment.CryptoPayError as e:
+            return error(f"could not create crypto invoice: {e}", 502)
+
+        db.execute(
+            "UPDATE orders SET crypto_invoice_id = ? WHERE id = ?",
+            (invoice.get("invoice_id"), order_id),
+        )
+        db.commit()
+
+        pay_url = invoice.get("bot_invoice_url") or invoice.get("pay_url")
+        return jsonify({"ok": True, "status": "crypto_link", "url": pay_url})
+
+    except Exception as e:
+        return error(f"unexpected server error: {e}", 500)
 
 
-@app.on_event("startup")
-async def set_webhook_on_startup():
-    if BOT_TOKEN and WEBAPP_URL:
-        async with httpx.AsyncClient() as client:
-            await client.post(f"{TG_API}/setWebhook", json={"url": f"{WEBAPP_URL}/webhook"})
+@app.route("/download/<order_id>")
+def download(order_id):
+    db = get_db()
+    row = db.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
+    if not row:
+        return error("order not found", 404)
+    if row["status"] != "paid":
+        return error("order is not paid yet", 402)
+
+    path = Path(row["file_path"]) if row["file_path"] else None
+    if not path or not path.is_file():
+        try:
+            path = finalize_paid_order(db, row)
+        except Exception as e:
+            return error(f"could not generate bot: {e}", 500)
+
+    return send_file(path, as_attachment=True, download_name="telegram_bot.zip")
+
+
+@app.route("/api/order_status/<order_id>")
+def order_status(order_id):
+    """Lets the frontend poll a crypto order while the user is paying."""
+    db = get_db()
+    row = db.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
+    if not row:
+        return error("order not found", 404)
+
+    if row["status"] != "paid" and row["tariff"] == "crypto" and row["crypto_invoice_id"]:
+        try:
+            invoice = asyncio.run(payment.get_invoice(row["crypto_invoice_id"]))
+        except payment.CryptoPayError:
+            invoice = None
+        if invoice and invoice.get("status") == "paid":
+            finalize_paid_order(db, row)
+            row = db.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
+
+    return jsonify({"ok": True, "status": row["status"]})
+
+
+@app.route("/api/crypto_webhook", methods=["POST"])
+def crypto_webhook():
+    """CryptoBot calls this URL (configured in @CryptoBot -> app settings) on invoice_paid."""
+    raw = request.get_data()
+    signature = request.headers.get("crypto-pay-api-signature", "")
+    if not payment.verify_webhook_signature(raw, signature):
+        return error("invalid signature", 403)
+
+    update = request.get_json(force=True, silent=True) or {}
+    if update.get("update_type") != "invoice_paid":
+        return jsonify({"ok": True})
+
+    invoice = update.get("payload", {})
+    order_id = invoice.get("payload")
+    if not order_id:
+        return jsonify({"ok": True})
+
+    db = get_db()
+    row = db.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
+    if not row:
+        return jsonify({"ok": True})
+
+    path = finalize_paid_order(db, row)
+    if row["user_id"]:
+        try:
+            tg_send_document(row["user_id"], path, caption="Оплата получена, ваш бот готов 🎉")
+        except Exception:
+            pass
+
+    return jsonify({"ok": True})
+
+
+@app.route("/webhook", methods=["POST"])
+def telegram_webhook():
+    if TELEGRAM_WEBHOOK_SECRET:
+        header = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
+        if header != TELEGRAM_WEBHOOK_SECRET:
+            return error("invalid secret token", 403)
+
+    update = request.get_json(force=True, silent=True) or {}
+    message = update.get("message") or {}
+
+    if "successful_payment" in message:
+        sp = message["successful_payment"]
+        order_id = sp.get("invoice_payload")
+        chat_id = message["chat"]["id"]
+        db = get_db()
+        row = db.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
+        if row:
+            path = finalize_paid_order(db, row)
+            try:
+                tg_send_document(chat_id, path, caption="Оплата получена, ваш бот готов 🎉")
+            except Exception as e:
+                tg_send_message(chat_id, f"Оплата прошла, но не удалось отправить файл: {e}")
+        return jsonify({"ok": True})
+
+    if message.get("text", "").startswith("/start"):
+        chat_id = message["chat"]["id"]
+        tg_send_message(chat_id, "Открой кнопку меню, чтобы собрать своего бота 🤖")
+        return jsonify({"ok": True})
+
+    return jsonify({"ok": True})
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8000)), debug=bool(os.environ.get("DEBUG")))
