@@ -22,6 +22,8 @@ from datetime import datetime
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gifts.db")
 
+BOT_USERNAME = os.environ.get("BOT_USERNAME", "cfbuilder_bot")
+
 
 def _db():
     conn = sqlite3.connect(DB_PATH)
@@ -45,7 +47,6 @@ def init_gift():
 
 
 def create_gift(admin_id):
-    """Create a new gift code. Returns the code string."""
     gift_id = uuid.uuid4().hex[:8]
     with _db() as conn:
         conn.execute(
@@ -57,11 +58,6 @@ def create_gift(admin_id):
 
 
 def claim_gift(gift_id, user_id):
-    """
-    Called when a user opens the gift link.
-    Saves that this user has a free order available.
-    Returns True if the gift was valid and unclaimed, False otherwise.
-    """
     with _db() as conn:
         row = conn.execute("SELECT * FROM gifts WHERE id = ?", (gift_id,)).fetchone()
         if not row:
@@ -69,15 +65,12 @@ def claim_gift(gift_id, user_id):
 
         gift = dict(row)
 
-        # Already claimed by someone else
         if gift["claimed_by"] is not None and gift["claimed_by"] != user_id:
             return False
 
-        # Already used (bot created)
         if gift["used"]:
             return False
 
-        # Claim for this user
         if gift["claimed_by"] is None:
             conn.execute(
                 "UPDATE gifts SET claimed_by = ?, claimed_at = ? WHERE id = ?",
@@ -89,9 +82,6 @@ def claim_gift(gift_id, user_id):
 
 
 def has_free_order(user_id):
-    """
-    Check if user has an active (claimed but unused) gift.
-    """
     with _db() as conn:
         row = conn.execute(
             "SELECT * FROM gifts WHERE claimed_by = ? AND used = 0 LIMIT 1",
@@ -101,10 +91,6 @@ def has_free_order(user_id):
 
 
 def consume_gift(user_id):
-    """
-    Mark the user's gift as used. Call after successful free order.
-    Returns True if a gift was consumed, False if no active gift found.
-    """
     with _db() as conn:
         row = conn.execute(
             "SELECT * FROM gifts WHERE claimed_by = ? AND used = 0 LIMIT 1",
@@ -118,7 +104,6 @@ def consume_gift(user_id):
 
 
 def list_gifts(admin_id):
-    """Return all gifts created by this admin."""
     with _db() as conn:
         rows = conn.execute(
             "SELECT * FROM gifts WHERE created_by = ? ORDER BY created_at DESC LIMIT 50",
@@ -128,7 +113,6 @@ def list_gifts(admin_id):
 
 
 def delete_gift(gift_id, admin_id):
-    """Delete a gift (revoke)."""
     with _db() as conn:
         conn.execute(
             "DELETE FROM gifts WHERE id = ? AND created_by = ?",
@@ -140,24 +124,19 @@ def delete_gift(gift_id, admin_id):
 # ---------------------------------------------------------------------------
 # Telegram command handler
 # ---------------------------------------------------------------------------
-def handle_gift_command(tg, text, user_id, admin_id, base_url):
-    """
-    Handle /gift commands in Telegram.
-    Returns True if the message was handled, False otherwise.
-    """
+def handle_gift_command(tg, text, user_id, admin_id):
     if not text or not text.startswith("/gift"):
         return False
 
     parts = text.strip().split()
 
-    # /gift — create new
     if len(parts) == 1:
         if str(user_id) != str(admin_id):
             tg.send_message(user_id, "❌ Только администратор может создавать подарочные ссылки.")
             return True
 
         gift_id = create_gift(admin_id)
-        link = f"https://t.me/{(base_url or 'bot')}?start=gift_{gift_id}"
+        link = f"https://t.me/{BOT_USERNAME}?start=gift_{gift_id}"
 
         tg.send_message(admin_id,
             f"🎁 <b>Подарочная ссылка создана</b>\n\n"
@@ -169,7 +148,6 @@ def handle_gift_command(tg, text, user_id, admin_id, base_url):
         )
         return True
 
-    # /gift list
     if len(parts) == 2 and parts[1] == "list":
         if str(user_id) != str(admin_id):
             tg.send_message(user_id, "❌ Только администратор.")
@@ -196,7 +174,6 @@ def handle_gift_command(tg, text, user_id, admin_id, base_url):
         tg.send_message(admin_id, msg)
         return True
 
-    # /gift delete <code>
     if len(parts) == 3 and parts[1] == "delete":
         if str(user_id) != str(admin_id):
             tg.send_message(user_id, "❌ Только администратор.")
@@ -211,13 +188,9 @@ def handle_gift_command(tg, text, user_id, admin_id, base_url):
 
 
 # ---------------------------------------------------------------------------
-# Web route handler (called from /start deep-link)
+# Deep-link handler
 # ---------------------------------------------------------------------------
 def handle_gift_deeplink(tg, user_id, username, first_name, start_param):
-    """
-    Check if /start has a gift code and claim it.
-    start_param: the text after /start (e.g. "gift_abc123")
-    """
     if not start_param or not start_param.startswith("gift_"):
         return False
 
