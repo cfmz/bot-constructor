@@ -1,9 +1,9 @@
 """
 broadcast.py
-Mass message broadcast to all users.
+Mass message broadcast to all users who started the bot.
 
 Admin command:
-    /all <text> — sends <text> to every user who ever created an order,
+    /all <text> — sends <text> to every user who ever pressed /start,
                   including the admin themselves.
 """
 
@@ -15,11 +15,11 @@ DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "orders.db")
 
 
 def get_all_users():
-    """Return list of unique user_ids from orders table."""
+    """Return list of unique user_ids from users table."""
     try:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
-        rows = conn.execute("SELECT DISTINCT user_id FROM orders WHERE user_id IS NOT NULL").fetchall()
+        rows = conn.execute("SELECT DISTINCT user_id FROM users").fetchall()
         conn.close()
         return [r["user_id"] for r in rows]
     except Exception:
